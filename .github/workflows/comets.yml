@@ -32,13 +32,10 @@ jobs:
           if [ $code -eq 2 ]; then exit 1; fi
           exit 0
 
-      - name: Commit if changed
+    - name: Commit if changed
         run: |
           git config user.name  "comet-bot"
           git config user.email "actions@github.com"
-          # Stage first. `git diff` ignores untracked files, so on the very
-          # first run an unstaged comets.json looks identical to nothing and
-          # never gets committed. Diffing the index covers both cases.
           git add comets.json
           if git diff --cached --quiet; then
             echo "No change today."
