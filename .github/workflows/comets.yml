@@ -36,12 +36,16 @@ jobs:
         run: |
           git config user.name  "comet-bot"
           git config user.email "actions@github.com"
-          if git diff --quiet -- comets.json; then
+          # Stage first. `git diff` ignores untracked files, so on the very
+          # first run an unstaged comets.json looks identical to nothing and
+          # never gets committed. Diffing the index covers both cases.
+          git add comets.json
+          if git diff --cached --quiet; then
             echo "No change today."
           else
-            git add comets.json
             git commit -m "Comet positions $(date -u +%Y-%m-%d)"
             git push
+            echo "Committed."
           fi
 
       - name: Flag partial failures
