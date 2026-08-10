@@ -1,0 +1,49 @@
+name: Update comet positions
+
+on:
+  schedule:
+    # 07:10 UTC daily — roughly 03:10 Eastern, after the night's observing
+    # and well clear of the top of the hour when Actions is busiest.
+    - cron: "10 7 * * *"
+  workflow_dispatch:        # lets you run it by hand from the Actions tab
+
+permissions:
+  contents: write           # needed to commit comets.json back to the repo
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch ephemerides from JPL Horizons
+        id: fetch
+        # Exit 1 means "some comets failed" — we still want to commit what we got.
+        # Exit 2 means "nothing fetched" — fail the run and leave the file alone.
+        run: |
+          set +e
+          python fetch_comets.py --out comets.json
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ $code -eq 2 ]; then exit 1; fi
+          exit 0
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "comet-bot"
+          git config user.email "actions@github.com"
+          if git diff --quiet -- comets.json; then
+            echo "No change today."
+          else
+            git add comets.json
+            git commit -m "Comet positions $(date -u +%Y-%m-%d)"
+            git push
+          fi
+
+      - name: Flag partial failures
+        if: steps.fetch.outputs.code == '1'
+        run: echo "::warning::Some comets failed; previous values were reused for those."
