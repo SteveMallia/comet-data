@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
-"""
-fetch_comets.py — Ontario Telescope Comet Tracker
 
-Queries NASA JPL Horizons once per comet and writes a single comets.json
-for the Comet Tracker page to read. Runs on a schedule from GitHub Actions;
-the page itself never talks to JPL.
-
-Usage:
-    python fetch_comets.py --out comets.json
-
-Exit codes:
-    0  all comets fetched
-    1  some comets failed (JSON still written, stale entries preserved)
-    2  nothing fetched at all (JSON NOT overwritten)
-"""
 
 import argparse
 import json
