@@ -263,13 +263,18 @@ def fetch(des, start, stop, attempts=3):
         except Exception as exc:                      # noqa: BLE001
             last = f"{type(exc).__name__}: {exc}"
             if n < attempts - 1:
-                time.sleep(3 * (n + 1))               # be polite to a NASA service
+                # Back off hard. If JPL is throttling, hammering makes it worse.
+                time.sleep(10 * (n + 1))
     return None, last
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="comets.json")
+    ap.add_argument("--sbdb", action="store_true",
+                    help="also fetch magnitude-law parameters from the Small-Body "
+                         "Database. Off by default: it doubles the number of requests "
+                         "to JPL and the page does not currently use the result.")
     args = ap.parse_args()
 
     now = datetime.now(timezone.utc)
@@ -287,11 +292,14 @@ def main():
     phys = {}
 
     for cid, des in COMETS:
-        pp, perr = fetch_sbdb(des)
-        if pp:
-            phys[cid] = pp
-        else:
-            print(f"  {cid:8} sbdb: {perr}", file=sys.stderr)
+        if args.sbdb:
+            pp, perr = fetch_sbdb(des)
+            if pp:
+                phys[cid] = pp
+            else:
+                # Never fatal: the ephemeris already carries T-mag, which is
+                # what the page reads. This is supplementary only.
+                print(f"  {cid:8} sbdb skipped: {perr}")
 
         text, err = fetch(des, start, stop)
         if text is None:
@@ -315,10 +323,13 @@ def main():
         if cid not in out and cid in previous:
             out[cid] = previous[cid]
             stale.append(cid)
-        time.sleep(1)                                 # ~1 req/sec
+        time.sleep(2)                                 # pace it: ~1 request / 2s
 
     if not ok:
         print("\nNothing fetched — leaving the existing file untouched.", file=sys.stderr)
+        print("All requests failed. If the errors above are HTTP 429/503, JPL is "
+              "throttling; wait an hour and retry rather than re-running immediately.",
+              file=sys.stderr)
         return 2
 
     payload = {
