@@ -133,8 +133,15 @@ def parse(text):
                 return i
         return -1
 
+    # Horizons labels quantity 9 differently by object class:
+    #   asteroids/planets -> "APmag"  "S-brt"
+    #   comets            -> "T-mag"  "N-mag"
+    # T-mag is the whole coma; N-mag is the central condensation. Looking
+    # only for "APmag" silently discards every comet magnitude.
     idx = {
-        "ra": starts("r.a"), "dec": starts("dec"), "mag": starts("apmag"),
+        "ra": starts("r.a"), "dec": starts("dec"),
+        "mag": starts("t-mag") if starts("t-mag") >= 0 else starts("apmag"),
+        "nmag": starts("n-mag"),
         "r": exact("r"), "delta": exact("delta"), "elong": starts("s-o-t"),
     }
     if idx["ra"] < 0 or idx["dec"] < 0:
@@ -163,13 +170,62 @@ def parse(text):
             continue
         rows.append({
             "jd": round(to_jd(dt), 6),
-            "ra": ra, "dec": num("dec"), "mag": num("mag"),
+            "ra": ra, "dec": num("dec"),
+            "mag": num("mag"),      # T-mag: whole coma
+            "nmag": num("nmag"),    # N-mag: central condensation
             "r": num("r"), "delta": num("delta"), "elong": num("elong"),
         })
 
     if not rows:
         return None, "ephemeris block contained no usable rows"
     return rows, None
+
+
+SBDB = "https://ssd-api.jpl.nasa.gov/sbdb.api"
+
+
+def fetch_sbdb(des):
+    """Pull the published magnitude-law parameters for one comet.
+
+    M1/K1 give total (coma) magnitude, M2/K2 give nuclear magnitude, via
+    the standard IAU model:
+
+        T-mag = M1 + 5*log10(delta) + K1*log10(r)
+        N-mag = M2 + 5*log10(delta) + K2*log10(r)
+
+    JPL fits these to the full set of MPC-reported observations. They are
+    US federal government work and carry no licence restriction, which is
+    the entire point of using them.
+    """
+    # Strip the Horizons record qualifiers; SBDB wants a bare designation.
+    d = des.replace("DES=", "").split(";")[0]
+    url = SBDB + "?" + urllib.parse.urlencode({"sstr": d, "phys-par": "1"})
+    try:
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "OntarioTelescope-CometTracker/1.0"})
+        with urllib.request.urlopen(req, timeout=45) as r:
+            data = json.loads(r.read().decode("utf-8", "replace"))
+    except Exception as exc:                          # noqa: BLE001
+        return None, f"{type(exc).__name__}: {exc}"
+
+    out = {}
+    for p in (data.get("phys_par") or []):
+        name = (p.get("name") or "").upper()
+        if name in ("M1", "K1", "M2", "K2", "PC"):
+            try:
+                out[name.lower()] = float(p.get("value"))
+            except (TypeError, ValueError):
+                pass
+    orb = data.get("orbit") or {}
+    for el in (orb.get("elements") or []):
+        if el.get("name") in ("q", "e", "per", "tp"):
+            try:
+                out[el["name"]] = float(el.get("value"))
+            except (TypeError, ValueError):
+                pass
+    if not out:
+        return None, "no physical parameters returned"
+    return out, None
 
 
 def sanity_check(cid, rows):
@@ -228,8 +284,15 @@ def main():
         previous = {}
 
     out, ok, failed, stale = {}, [], [], []
+    phys = {}
 
     for cid, des in COMETS:
+        pp, perr = fetch_sbdb(des)
+        if pp:
+            phys[cid] = pp
+        else:
+            print(f"  {cid:8} sbdb: {perr}", file=sys.stderr)
+
         text, err = fetch(des, start, stop)
         if text is None:
             print(f"  {cid:8} FETCH FAILED  {err}", file=sys.stderr)
@@ -260,9 +323,10 @@ def main():
 
     payload = {
         "generated": now.isoformat(timespec="seconds"),
-        "source": "NASA/JPL Horizons",
+        "source": "NASA/JPL Horizons and JPL Small-Body Database (public domain)",
         "window": {"start": start, "stop": stop},
         "ok": ok, "failed": failed, "reused_previous": stale,
+        "physical": phys,
         "ephemerides": out,
     }
     with open(args.out, "w", encoding="utf-8") as fh:
