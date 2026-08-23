@@ -1,0 +1,77 @@
+name: Dump record listing
+
+# My record picker chooses the apparition with the highest "Epoch-yr", and
+# the comets it picked for read ~2.2 mag fainter than those Horizons resolved
+# itself. So the picker is choosing the wrong record. This dumps the actual
+# listing so we can see the real column layout, and compares magnitudes
+# across records for one comet.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Show the raw record listing, then compare records
+        run: |
+          python - <<'PY'
+          import urllib.request, urllib.parse, re, time
+
+          def get(command):
+              q = {"format": "text", "COMMAND": command, "OBJ_DATA": "NO",
+                   "MAKE_EPHEM": "YES", "EPHEM_TYPE": "OBSERVER",
+                   "CENTER": "'500@399'", "START_TIME": "'2026-08-23'",
+                   "STOP_TIME": "'2026-08-25'", "STEP_SIZE": "'1 d'",
+                   "QUANTITIES": "'1,9,19,20,23'", "CSV_FORMAT": "YES",
+                   "ANG_FORMAT": "DEG"}
+              url = "https://ssd.jpl.nasa.gov/api/horizons.api?" + urllib.parse.urlencode(q)
+              req = urllib.request.Request(url, headers={
+                  "User-Agent": "OntarioTelescope-CometTracker/1.0"})
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  return r.read().decode("utf-8", "replace")
+
+          print("=== RAW listing for DES=10P; ===")
+          body = get("'DES=10P;'")
+          for line in body.strip().splitlines()[:45]:
+              print("   ", line[:118])
+
+          recs = re.findall(r"\s*(\d{6,9})\s+(\d{4})\s+(\S.*)$", body, re.M)
+          print(f"\n=== my regex found {len(recs)} records ===")
+          for r, y, nm in recs:
+              print(f"    {r}  {y}  {nm.strip()[:40]}")
+
+          if recs:
+              print("\n=== magnitude from each record, to see which is current ===")
+              for r, y, nm in recs[-6:]:
+                  try:
+                      b = get(f"'{r}'")
+                      if "$$SOE" in b:
+                          row = b.split("$$SOE")[1].strip().splitlines()[0]
+                          cells = [c.strip() for c in row.split(",")]
+                          hdr = ""
+                          for line in reversed(b.split("$$SOE")[0].strip().splitlines()):
+                              if "date__" in line.lower():
+                                  hdr = line.strip(); break
+                          cols = [h.strip() for h in hdr.split(",")]
+                          mi = next((i for i, h in enumerate(cols)
+                                     if h.lower().startswith(("t-mag", "apmag"))), None)
+                          mag = cells[mi] if mi is not None and mi < len(cells) else "?"
+                          print(f"    record {r} (epoch {y}): T-mag = {mag}")
+                      else:
+                          msg = [l.strip() for l in b.strip().splitlines()[2:]
+                                 if l.strip() and set(l.strip()) != {"*"}]
+                          print(f"    record {r} (epoch {y}): no ephemeris — {(msg[:1] or ['?'])[0][:50]}")
+                  except Exception as exc:
+                      print(f"    record {r}: {type(exc).__name__}")
+                  time.sleep(2)
+
+          print("\n=== does 29P resolve differently? ===")
+          b = get("'DES=29P;'")
+          for line in b.strip().splitlines()[:25]:
+              print("   ", line[:118])
+          PY
