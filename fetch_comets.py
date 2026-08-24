@@ -17,6 +17,7 @@ Exit codes:
 
 import argparse
 import json
+import math
 import re
 import sys
 import time
@@ -26,29 +27,102 @@ from datetime import datetime, timedelta, timezone
 
 HORIZONS = "https://ssd.jpl.nasa.gov/api/horizons.api"
 
-# Horizons designations.
+# The comet roster is NOT a fixed list. It is derived each night from JPL's
+# Small-Body Database, so the selection is our own and rests only on public
+# NASA data: every comet whose magnitude law and orbit put it within reach
+# this month. See select_comets() below.
 #
-# NOTE: the CAP and NOFRAG keywords stopped working in August 2026 —
+# NOTE: the CAP and NOFRAG keywords stopped working in August 2026 --
 # Horizons now parses them as filter expressions and rejects the request
-# with "Missing operator in \"AP\"". Long-period comets have a single orbit
-# solution and work with a bare "DES=...;". Periodic comets may return a
-# list of apparition records; see resolve_record() below.
-COMETS = [
-    ("220P",    "DES=220P;"),
-    ("10P",     "DES=10P;"),
-    ("88P",     "DES=88P;"),
-    ("78P",     "DES=78P;"),
-    ("29P",     "DES=29P;"),
-    ("169P",    "DES=169P;"),
-    ("2025R3",  "DES=C/2025 R3;"),
-    ("2024J3",  "DES=C/2024 J3;"),
-    ("2023R1",  "DES=C/2023 R1;"),
-    ("260P",    "DES=260P;"),
-    ("2024R4",  "DES=C/2024 R4;"),
-    ("63P",     "DES=63P;"),
-    ("2026A2",  "DES=C/2026 A2;"),
-    ("161P",    "DES=161P;"),
-]
+# with 'Missing operator in "AP"'. Long-period comets resolve from a bare
+# "DES=...;". Periodic comets return a list of apparition records; see
+# resolve() below.
+
+SBDB_QUERY = "https://ssd-api.jpl.nasa.gov/sbdb_query.api"
+MAG_LIMIT = 17.0        # faintest total magnitude worth listing
+MAX_COMETS = 16         # keep the nightly job and the page a sane size
+
+
+def select_comets():
+    """Ask JPL which comets are currently worth listing.
+
+    One request to the Small-Body Database for every comet carrying the
+    magnitude parameters M1/K1, then a cheap brightness estimate at
+    perihelion-ish geometry to shortlist candidates. The ephemeris pass
+    that follows does the real filtering on computed T-mag.
+
+    This replaces a hand-picked roster. The selection criteria are ours
+    and the inputs are all NASA public data.
+    """
+    fields = "full_name,pdes,q,e,M1,K1,tp"
+    url = SBDB_QUERY + "?" + urllib.parse.urlencode({
+        "fields": fields,
+        "sb-kind": "c",              # comets only
+        "sb-cdata": json.dumps({     # only ones we can estimate a brightness for
+            "AND": ["M1|DF", "q|LT|6.5"]
+        }),
+        "limit": "1200",
+    })
+    try:
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "OntarioTelescope-CometTracker/1.0"})
+        with urllib.request.urlopen(req, timeout=90) as r:
+            data = json.loads(r.read().decode("utf-8", "replace"))
+    except Exception as exc:                              # noqa: BLE001
+        return None, f"{type(exc).__name__}: {exc}"
+
+    rows = data.get("data") or []
+    cols = data.get("fields") or fields.split(",")
+    idx = {name: i for i, name in enumerate(cols)}
+    now_jd = datetime.now(timezone.utc).timestamp() / 86400.0 + 2440587.5
+
+    cands = []
+    for row in rows:
+        def val(name):
+            i = idx.get(name)
+            if i is None or i >= len(row) or row[i] in (None, ""):
+                return None
+            try:
+                return float(row[i])
+            except (TypeError, ValueError):
+                return row[i]
+        q, m1, k1, tp = val("q"), val("M1"), val("K1"), val("tp")
+        if q is None or m1 is None:
+            continue
+        if k1 is None:
+            k1 = 10.0
+        # Rough best-case brightness: at perihelion, with Earth no closer
+        # than |q-1| AU. Deliberately generous -- the ephemeris pass filters
+        # properly. This only needs to avoid missing anything.
+        delta = max(0.25, abs(q - 1.0))
+        est = m1 + 5 * math.log10(delta) + k1 * math.log10(max(0.05, q))
+        if est > MAG_LIMIT + 3:
+            continue
+        # prefer comets near perihelion now
+        near = abs(tp - now_jd) if isinstance(tp, float) else 1e9
+        name = row[idx["full_name"]].strip() if "full_name" in idx else ""
+        pdes = str(row[idx["pdes"]]).strip() if "pdes" in idx else ""
+        if not pdes:
+            continue
+        cands.append((est, near, pdes, name))
+
+    if not cands:
+        return None, "SBDB returned no usable candidates"
+
+    # brightest first, then closest to perihelion
+    cands.sort(key=lambda t: (t[0], t[1]))
+    out = []
+    seen = set()
+    for est, near, pdes, name in cands:
+        if pdes in seen:
+            continue
+        seen.add(pdes)
+        cid = pdes.replace("/", "").replace(" ", "")
+        out.append((cid, f"DES={pdes};", name or pdes))
+        if len(out) >= MAX_COMETS * 2:      # headroom; ephemeris pass trims
+            break
+    return out, None
+
 
 DAYS_BACK, DAYS_FORWARD = 14, 60
 MONTHS = {m: i + 1 for i, m in enumerate(
@@ -349,45 +423,64 @@ def main():
     except (OSError, ValueError):
         previous = {}
 
-    out, ok, failed, stale = {}, [], [], []
-    phys, records = {}, {}
+    roster, rerr = select_comets()
+    if roster is None:
+        print(f"Could not derive the comet list from JPL SBDB: {rerr}", file=sys.stderr)
+        if not previous:
+            return 2
+        print("Falling back to the comets already in the feed.", file=sys.stderr)
+        roster = [(cid, f"DES={cid};", cid) for cid in previous]
+    print(f"JPL SBDB shortlisted {len(roster)} candidate comets\n")
 
-    for cid, des in COMETS:
+    out, ok, failed, stale = {}, [], [], []
+    phys, records, names = {}, {}, {}
+
+    for cid, des, name in roster:
+        if len(ok) >= MAX_COMETS:
+            break
         if args.sbdb:
             pp, perr = fetch_sbdb(des)
             if pp:
                 phys[cid] = pp
             else:
-                # Never fatal: the ephemeris already carries T-mag, which is
-                # what the page reads. This is supplementary only.
-                print(f"  {cid:8} sbdb skipped: {perr}")
+                print(f"  {cid:10} sbdb skipped: {perr}")
 
         text, rec, err = resolve(des, start, stop)
         if rec:
             records[cid] = rec
         if text is None:
-            print(f"  {cid:8} FETCH FAILED  {err}", file=sys.stderr)
+            print(f"  {cid:10} skipped  {err}", file=sys.stderr)
             failed.append(cid)
         else:
             rows, perr = parse(text)
             if rows is None:
-                print(f"  {cid:8} PARSE FAILED  {perr}", file=sys.stderr)
+                print(f"  {cid:10} parse failed  {perr}", file=sys.stderr)
                 failed.append(cid)
             else:
                 problems = sanity_check(cid, rows)
                 if problems:
-                    print(f"  {cid:8} REJECTED  {'; '.join(problems)}", file=sys.stderr)
+                    print(f"  {cid:10} rejected  {'; '.join(problems)}", file=sys.stderr)
                     failed.append(cid)
                 else:
+                    # the real cut: is it actually bright enough to list?
+                    mags = [r["mag"] for r in rows if r["mag"] is not None]
+                    best = min(mags) if mags else None
+                    if best is None:
+                        print(f"  {cid:10} dropped  no magnitude available")
+                        continue
+                    if best > MAG_LIMIT:
+                        print(f"  {cid:10} dropped  brightest is only mag {best:.1f}")
+                        continue
                     out[cid] = rows
+                    names[cid] = name
                     tag = f" (record {records[cid]})" if cid in records else ""
-                    print(f"  {cid:8} ok  {len(rows)} rows{tag}")
+                    print(f"  {cid:10} ok  {len(rows)} rows, best mag {best:.1f}{tag}")
                     ok.append(cid)
 
         if cid not in out and cid in previous:
             out[cid] = previous[cid]
             stale.append(cid)
-        time.sleep(2)                                 # pace it: ~1 request / 2s
+        time.sleep(2)
 
     if not ok:
         print("\nNothing fetched — leaving the existing file untouched.", file=sys.stderr)
@@ -403,6 +496,12 @@ def main():
         "ok": ok, "failed": failed, "reused_previous": stale,
         "physical": phys,
         "records": records,
+        "names": names,
+        "selection": {
+            "source": "JPL Small-Body Database",
+            "criteria": f"comets with published M1, q < 6.5 AU, computed T-mag <= {MAG_LIMIT}",
+            "max": MAX_COMETS,
+        },
         "ephemerides": out,
     }
     with open(args.out, "w", encoding="utf-8") as fh:

@@ -1,27 +1,51 @@
 /* Comet Tracker - Ontario Telescope and Accessories
    (c) 2026 Ontario Telescope and Accessories Inc. All rights reserved.
-   Comet data: NASA JPL Horizons (US Government, public domain).
-   Star data:  d3-celestial, (c) 2015 Olaf Frohn, BSD 3-Clause. */
+
+   Comet positions, brightness and the choice of which comets to list all come
+   from NASA JPL (Horizons and the Small-Body Database). Credit NASA/JPL-Caltech.
+
+   Star positions, names and constellation figures are derived from the Hipparcos
+   and Yale Bright Star catalogues as prepared by the d3-celestial project:
+
+   Copyright (c) 2015, Olaf Frohn. All rights reserved.
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
+   1. Redistributions of source code must retain the above copyright notice,
+      this list of conditions and the following disclaimer.
+   2. Redistributions in binary form must reproduce the above copyright notice,
+      this list of conditions and the following disclaimer in the documentation
+      and/or other materials provided with the distribution.
+   3. Neither the name of the copyright holder nor the names of its contributors
+      may be used to endorse or promote products derived from this software
+      without specific prior written permission.
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+   FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+   CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+   OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 (function(){
   var mount=document.getElementById('comet-tracker-mount');
   if(!mount){return;}
   var st=document.createElement('style');
   st.textContent="\n/* ============================================================\n   comet-tracker.css  \u00b7  Ontario Telescope and Accessories\n   Token system and component vocabulary transposed from\n   flatframecalculator.css (.ffc) \u2014 theme variables first,\n   color-mix derivation, @supports fallback.\n   ============================================================ */\n.cmt{--brand-raw: var(--accent-color, var(--ota-brand, #ed0000));\n    --paper: var(--secondary-background, rgb(var(--color-background, 8 9 11)));\n    --ink: var(--text-color, rgb(var(--color-foreground, 233 235 238)));\n    --heading: var(--heading-color, var(--ink));\n    --card: color-mix(in srgb, var(--paper) 94%, var(--ink) 6%);\n    --sunken: color-mix(in srgb, var(--paper) 88%, var(--ink) 12%);\n    --rule: color-mix(in srgb, var(--ink) 22%, transparent);\n    --rule-soft: color-mix(in srgb, var(--ink) 12%, transparent);\n    --ink-soft: color-mix(in srgb, var(--ink) 68%, transparent);\n    --brand: var(--brand-raw);\n    --brand-hi: color-mix(in srgb, var(--brand) 82%, var(--ink) 18%);\n    --brand-bg: color-mix(in srgb, var(--brand) 9%, var(--paper));\n    --accent: color-mix(in srgb, #b5701c 82%, var(--ink) 18%);\n    --ok: color-mix(in srgb, #3d9068 78%, var(--ink) 22%);\n    --warn-bg: color-mix(in srgb, var(--accent) 12%, var(--paper));\n    --ok-bg: color-mix(in srgb, var(--ok) 12%, var(--paper));\n    --sky: color-mix(in srgb, var(--paper) 92%, #000 8%);\n    --star: var(--ink);\n    --skyline: color-mix(in srgb, var(--ink) 34%, transparent);\n    --mono: \"IBM Plex Mono\", ui-monospace, \"SF Mono\", Menlo, monospace;\n    --sans: var(--text-font-family, var(--font-body-family, \"IBM Plex Sans\", system-ui, sans-serif));\n    --head: var(--heading-font-family, var(--font-heading-family, var(--sans)));\n    background: var(--paper); color: var(--ink); font-family: var(--sans);\n    line-height: 1.6; -webkit-font-smoothing: antialiased;\n    box-sizing: border-box;\n    padding: 2.5rem clamp(1.25rem, 3vw, 2.5rem) 4rem;}\n@supports not (color: color-mix(in srgb, red 50%, transparent)){.cmt{--paper:#08090b; --ink:#e9ebee; --heading:#ffffff; --card:#131417; --sunken:#1b1d22;\n      --rule:#34373d; --rule-soft:#25272c; --ink-soft:#9aa1aa; --brand:#ed0000; --brand-hi:#ff4d4d;\n      --brand-bg:#2a0f10; --accent:#d69a4e; --ok:#4fae7f; --warn-bg:#241c10; --ok-bg:#0f2019;\n      --sky:#06070a; --star:#e9ebee; --skyline:#4a4e57;}\n  }\n/* Night mode: opt-in red-only ramp for use at the eyepiece. Overrides the\n   two source tokens only \u2014 everything else is derived and follows. */\n.cmt[data-night=\"on\"]{--paper:#0b0202; --ink:#ff7a6b; --heading:#ff9b8f;\n    --brand-raw:#ff4436; --accent:#c9553f; --ok:#b8483c;\n    --sky:#080101; --star:#ff8577; --skyline:color-mix(in srgb, var(--ink) 30%, transparent);}\n\n.cmt, .cmt *{box-sizing:border-box}\n.cmt .cmt-grid > *, .cmt .cmt-kpis > *, .cmt .cmt-prodcards > *{min-width:0}\n.cmt img, .cmt canvas, .cmt table{max-width:100%}\n.cmt input, .cmt select{max-width:100%; min-width:0}\n.cmt a{color:var(--brand); text-decoration:none}\n.cmt a:hover{text-decoration:underline}\n.cmt p{margin:0 0 1rem}\n\n.cmt__head{max-width:90rem; margin:0 auto 2.5rem}\n.cmt__eyebrow{font-family:var(--mono); font-size:.7rem; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-soft); margin:0 0 .6rem}\n.cmt h1{color:var(--heading); font-family:var(--head); font-size:clamp(1.9rem,5vw,3rem); font-weight:600; letter-spacing:-.025em; line-height:1.08; margin:0 0 1rem}\n.cmt__standfirst{font-size:clamp(1rem,2.2vw,1.15rem); color:var(--ink-soft); max-width:46ch; margin:0 0 1rem}\n.cmt__seo{font-size:.92rem; color:var(--ink-soft); max-width:52ch; margin:0}\n\n.cmt__section{max-width:90rem; margin-left:auto; margin-right:auto; padding:2.5rem 0; border-top:1px solid var(--rule)}\n.cmt h2{font-family:var(--head); font-size:clamp(1.15rem,2.6vw,1.4rem); font-weight:600; letter-spacing:-.01em; color:var(--heading); margin:0 0 .5rem; display:flex; gap:.85rem; align-items:baseline}\n.cmt h2 .cmt-no{font-family:var(--mono); font-size:.75rem; font-weight:400; color:var(--accent); letter-spacing:.08em}\n.cmt h3{font-size:1.02rem; font-weight:600; color:var(--heading); margin:1.9rem 0 .5rem}\n.cmt h4{font-size:.95rem; font-weight:600; color:var(--ink); margin:1.3rem 0 .4rem}\n.cmt .cmt-sec-note{color:var(--ink-soft); font-size:.92rem; margin:0 0 1.4rem; max-width:48rem}\n\n.cmt .cmt-flags{display:flex; flex-wrap:wrap; gap:.5rem; margin:0 0 1.6rem}\n.cmt .cmt-flag{font-family:var(--mono); font-size:.7rem; letter-spacing:.03em; text-transform:uppercase;\n    white-space:nowrap; padding:.3rem .6rem; border-radius:2px; background:var(--sunken); color:var(--ink-soft)}\n.cmt .cmt-flag.cmt-ok{background:var(--ok-bg); color:var(--ok)}\n.cmt .cmt-flag.cmt-warn{background:var(--warn-bg); color:var(--accent)}\n.cmt .cmt-flag.cmt-bad{background:var(--brand-bg); color:var(--brand)}\n\n.cmt .cmt-group{background:var(--card); border:1px solid var(--rule); border-radius:3px; padding:1.1rem 1.15rem 1.25rem; margin:1rem 0}\n.cmt .cmt-group > h3{margin:0 0 .2rem; font-family:var(--mono); font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--ink-soft); border-bottom:1px solid var(--rule); padding-bottom:.6rem}\n.cmt .cmt-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.9rem 1.5rem; margin-top:.9rem}\n@media(min-width:780px){.cmt .cmt-group > .cmt-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}\n@media(max-width:600px){.cmt .cmt-grid{grid-template-columns:1fr}}\n.cmt .cmt-field{display:flex; flex-direction:column; gap:.35rem; min-width:0}\n.cmt .cmt-field label{font-size:.85rem; color:var(--ink); font-weight:500}\n.cmt .cmt-field .cmt-u{color:var(--ink-soft); font-weight:400; font-family:var(--mono); font-size:.78em}\n.cmt .cmt-field .cmt-sub{font-size:.76rem; color:var(--ink-soft); margin:0}\n.cmt select{width:100%; padding:.6rem .7rem; background:var(--paper); border:1px solid var(--rule); border-radius:2px;\n    color:var(--ink); font-size:.95rem; font-family:var(--sans); outline:none; min-height:44px;\n    appearance:none; background-image:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23888'><path d='M2 4l4 4 4-4z'/></svg>\");\n    background-repeat:no-repeat; background-position:right 12px center; padding-right:34px}\n.cmt select:focus{border-color:var(--brand); outline:2px solid var(--brand); outline-offset:1px}\n.cmt select option, .cmt select optgroup{background-color:var(--paper); color:var(--ink)}\n.cmt input[type=range]{width:100%; -webkit-appearance:none; appearance:none; background:transparent; height:44px; margin:0}\n.cmt input[type=range]::-webkit-slider-runnable-track{height:2px; background:var(--rule)}\n.cmt input[type=range]::-moz-range-track{height:2px; background:var(--rule)}\n.cmt input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:20px; height:20px; background:var(--brand); border-radius:50%; margin-top:-9px; cursor:pointer}\n.cmt input[type=range]::-moz-range-thumb{width:20px; height:20px; background:var(--brand); border:none; border-radius:50%; cursor:pointer}\n.cmt input[type=range]:focus-visible{outline:2px solid var(--brand); outline-offset:2px}\n\n.cmt .cmt-modeswitch{display:inline-flex; gap:.4rem; background:var(--sunken); border:1px solid var(--rule); border-radius:3px; padding:.3rem; flex-wrap:wrap}\n.cmt .cmt-modeswitch button{border:0; background:transparent; color:var(--ink-soft); font-family:var(--mono); font-size:.8rem; letter-spacing:.03em; padding:.6rem 1rem; border-radius:2px; cursor:pointer; min-height:40px}\n.cmt .cmt-modeswitch button.cmt-on{background:var(--brand); color:#fff}\n.cmt .cmt-btn{display:inline-flex; align-items:center; justify-content:center; gap:.5rem; cursor:pointer; border:1px solid var(--brand); background:var(--brand); color:#fff; font-family:var(--mono); font-size:.82rem; letter-spacing:.04em; padding:0 1.4rem; min-height:44px; border-radius:2px}\n.cmt .cmt-btn:hover{background:var(--brand-hi); border-color:var(--brand-hi)}\n.cmt .cmt-btn:focus-visible{outline:2px solid var(--brand); outline-offset:1px}\n.cmt .cmt-btn.cmt-sec{background:var(--card); color:var(--ink); border-color:var(--rule)}\n.cmt .cmt-btn.cmt-sec:hover{background:var(--sunken); border-color:var(--brand)}\n.cmt .cmt-actions{display:flex; gap:.7rem; flex-wrap:wrap; margin-top:1.4rem; align-items:center}\n\n.cmt .cmt-sky{background:var(--sky); border:1px solid var(--rule); border-radius:3px; padding:.6rem}\n.cmt .cmt-sky canvas{width:100%; height:auto; display:block}\n.cmt .cmt-legend{display:flex; flex-wrap:wrap; gap:.4rem 1.1rem; margin-top:.7rem; font-family:var(--mono); font-size:.7rem; color:var(--ink-soft)}\n.cmt .cmt-legend i{display:inline-block; width:.5rem; height:.5rem; border-radius:50%; background:var(--brand); margin-right:.35rem; vertical-align:middle}\n.cmt .cmt-legend i.cmt-moon{background:var(--ink-soft)}\n\n.cmt .cmt-kpis{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.7rem; margin:1rem 0}\n@media(max-width:720px){.cmt .cmt-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}\n@media(max-width:400px){.cmt .cmt-kpis{grid-template-columns:1fr}}\n.cmt .cmt-kpi{background:var(--card); border:1px solid var(--rule); border-radius:3px; padding:.9rem}\n.cmt .cmt-kpi .cmt-l{font-family:var(--mono); font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft)}\n.cmt .cmt-kpi .cmt-v{font-family:var(--mono); font-size:1.45rem; font-weight:500; margin-top:.35rem; color:var(--ink); line-height:1.15; font-variant-numeric:tabular-nums}\n.cmt .cmt-kpi .cmt-v small{font-size:.85rem; color:var(--ink-soft); font-weight:400}\n.cmt .cmt-kpi .cmt-d{font-size:.74rem; color:var(--ink-soft); margin-top:.35rem}\n.cmt .cmt-kpi .cmt-d b{color:var(--ink); font-weight:600}\n\n.cmt .cmt-list{border-top:1px solid var(--rule)}\n.cmt .cmt-row{border-bottom:1px solid var(--rule-soft)}\n.cmt .cmt-rowbtn{display:grid; grid-template-columns:1fr auto; gap:.3rem 1rem; align-items:center; width:100%;\n    text-align:left; background:none; border:0; padding:1rem .6rem; cursor:pointer; color:inherit; font-family:var(--sans); min-height:44px}\n.cmt .cmt-rowbtn:hover{background:var(--card)}\n.cmt .cmt-row[data-open=\"1\"] .cmt-rowbtn{background:var(--card); box-shadow:inset 3px 0 0 var(--brand)}\n.cmt .cmt-rname{font-weight:600; font-size:1rem; color:var(--ink); line-height:1.3}\n.cmt .cmt-rmeta{font-family:var(--mono); font-size:.72rem; color:var(--ink-soft); margin-top:.3rem}\n.cmt .cmt-rmeta span+span::before{content:\" \u00b7 \"; color:var(--rule)}\n.cmt .cmt-rmag{text-align:right; font-family:var(--mono); line-height:1.15}\n.cmt .cmt-rmag b{font-size:1.35rem; font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums}\n.cmt .cmt-rmag .cmt-pill{display:block; margin-top:.3rem}\n.cmt .cmt-pill{display:inline-block; font-family:var(--mono); font-size:.66rem; letter-spacing:.03em; padding:.15rem .5rem; border-radius:2px}\n.cmt .cmt-pill.cmt-nb{background:var(--sunken); color:var(--ink-soft)}\n.cmt .cmt-pill.cmt-bb{background:var(--brand-bg); color:var(--brand)}\n.cmt .cmt-row.cmt-off{opacity:.45}\n.cmt .cmt-detail{display:none; padding:.25rem .6rem 1.75rem}\n.cmt .cmt-row[data-open=\"1\"] .cmt-detail{display:block}\n.cmt .cmt-two{display:grid; grid-template-columns:1fr; gap:1rem}\n@media(min-width:780px){.cmt .cmt-two{grid-template-columns:1.3fr 1fr}}\n.cmt .cmt-box{background:var(--card); border:1px solid var(--rule); border-radius:3px; padding:.95rem}\n.cmt .cmt-box h4{margin:0 0 .6rem; font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-weight:500}\n.cmt .cmt-box canvas{width:100%; height:auto; display:block; background:var(--sky); border-radius:2px}\n.cmt table.cmt-exp{width:100%; border-collapse:collapse; margin-top:.4rem; font-size:.85rem}\n.cmt table.cmt-exp td{text-align:left; padding:.55rem .5rem; border-bottom:1px solid var(--rule-soft); color:var(--ink-soft)}\n.cmt table.cmt-exp td.cmt-exp-v{font-family:var(--mono); font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums; text-align:right}\n\n.cmt .cmt-alert{display:flex; gap:.75rem; padding:.85rem 1rem; border-radius:2px; font-size:.9rem; align-items:flex-start; border-left:3px solid var(--rule); background:var(--card); margin:1rem 0}\n.cmt .cmt-alert .cmt-ic{flex:0 0 auto; font-family:var(--mono); font-weight:500; line-height:1.5}\n.cmt .cmt-alert.cmt-warn{background:var(--warn-bg); border-left-color:var(--accent)}\n.cmt .cmt-alert.cmt-warn .cmt-ic{color:var(--accent)}\n.cmt .cmt-alert.cmt-bad{background:var(--brand-bg); border-left-color:var(--brand)}\n.cmt .cmt-alert.cmt-bad .cmt-ic{color:var(--brand)}\n.cmt .cmt-alert.cmt-info{background:var(--sunken); border-left-color:var(--ink-soft)}\n.cmt .cmt-alert.cmt-info .cmt-ic{color:var(--ink-soft)}\n.cmt .cmt-alert b{color:var(--ink); font-weight:600}\n\n.cmt .cmt-guide p, .cmt .cmt-guide li{color:var(--ink-soft)}\n.cmt .cmt-guide ul{padding-left:1.2rem}\n.cmt .cmt-guide li{margin:.4rem 0}\n.cmt .cmt-guide b, .cmt .cmt-guide strong{color:var(--ink); font-weight:600}\n.cmt .cmt-guide h3, .cmt .cmt-guide p, .cmt .cmt-guide ul, .cmt .cmt-callout, .cmt .cmt-mono-block{max-width:48rem}\n.cmt .cmt-callout{border-left:3px solid var(--accent); background:var(--warn-bg); padding:.9rem 1rem; font-size:.9rem; margin:1rem 0}\n.cmt .cmt-callout h4{margin:0 0 .4rem; font-size:.95rem; color:var(--ink); font-weight:600}\n.cmt .cmt-callout p{margin:.4rem 0 0}\n.cmt .cmt-mono-block{background:var(--sunken); border-left:3px solid var(--rule); padding:.8rem 1rem; font-family:var(--mono); font-size:.82rem; color:var(--ink); overflow-x:auto; margin:1rem 0; line-height:1.9}\n.cmt .cmt-mono-block span{color:var(--ink-soft)}\n.cmt table.cmt-g{width:100%; border-collapse:collapse; margin:1rem 0; font-size:.86rem}\n.cmt table.cmt-g th, .cmt table.cmt-g td{border:1px solid var(--rule); padding:.55rem .75rem; text-align:left; vertical-align:top}\n.cmt table.cmt-g th{background:var(--sunken); color:var(--ink); font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.04em; font-weight:500}\n.cmt table.cmt-g td{color:var(--ink-soft)}\n.cmt table.cmt-g td:first-child{color:var(--ink); font-weight:600; width:12rem}\n@media(max-width:600px){.cmt table.cmt-g{display:block; overflow-x:auto; -webkit-overflow-scrolling:touch}}\n\n.cmt .cmt-prodcards{display:grid; grid-template-columns:1fr 1fr; gap:.8rem; margin:1rem 0}\n@media(max-width:600px){.cmt .cmt-prodcards{grid-template-columns:1fr}}\n@media(min-width:780px){.cmt .cmt-prodcards{grid-template-columns:repeat(3,1fr)}}\n.cmt .cmt-prodcard{background:var(--card); border:1px solid var(--rule); border-radius:3px; padding:1rem}\n.cmt .cmt-prodcard h4{margin:0 0 .3rem; font-size:.98rem; color:var(--ink); font-weight:600}\n.cmt .cmt-prodcard p{font-size:.82rem; color:var(--ink-soft); margin:.4rem 0 .9rem}\n.cmt .cmt-prodcard a{display:inline-flex; align-items:center; min-height:40px; font-family:var(--mono); font-size:.78rem; color:#fff; background:var(--brand); padding:0 .9rem; border-radius:2px}\n.cmt .cmt-prodcard a:hover{background:var(--brand-hi); text-decoration:none}\n\n.cmt .cmt-faq details{border-top:1px solid var(--rule); padding:0}\n.cmt .cmt-faq details:first-of-type{border-top:0}\n.cmt .cmt-faq summary{cursor:pointer; list-style:none; padding:1.1rem 2rem 1.1rem 0; font-size:1rem; font-weight:600; color:var(--ink); position:relative; min-height:44px; display:flex; align-items:center; max-width:52rem}\n.cmt .cmt-faq summary::-webkit-details-marker{display:none}\n.cmt .cmt-faq summary::after{content:\"+\"; position:absolute; right:.2rem; top:50%; transform:translateY(-50%); font-family:var(--mono); font-size:1.1rem; font-weight:400; color:var(--accent)}\n.cmt .cmt-faq details[open] summary::after{content:\"\\2013\"}\n.cmt .cmt-faq .cmt-a{padding:0 0 1.2rem; color:var(--ink-soft); font-size:.92rem; max-width:52rem}\n.cmt .cmt-faq .cmt-a p:first-child{margin-top:0}\n\n.cmt footer.cmt__foot{margin-top:2.5rem; padding-top:1.6rem; border-top:1px solid var(--rule); color:var(--ink-soft); font-size:.85rem}\n.cmt footer.cmt__foot .cmt-rev{color:var(--ink); font-weight:600}\n.cmt footer.cmt__foot .cmt-priv{margin-top:.4rem}\n.cmt footer.cmt__foot .cmt-disc{margin-top:1rem; font-size:.76rem}\n\n.cmt h1, .cmt h2, .cmt h3, .cmt h4, .cmt p, .cmt li, .cmt td{overflow-wrap:break-word}\n@media (prefers-reduced-motion:reduce){.cmt *{transition:none!important; animation:none!important}}\n";
   document.head.appendChild(st);
-  mount.innerHTML="\n\n<div class=\"cmt\" id=\"cmt\" data-night=\"off\">\n\n<header class=\"cmt__head\">\n  <p class=\"cmt__eyebrow\">Free tool \u00b7 Ontario Telescope</p>\n  <h1>Is there a comet worth getting the scope out for?</h1>\n  <p class=\"cmt__standfirst\">Comet brightness forecasts are extrapolations from past behaviour,\n  and comets do not feel bound by them. One on this list is currently running six magnitudes ahead\n  of its own prediction.</p>\n  <p class=\"cmt__seo\">The Ontario Telescope Comet Tracker is a free observing tool for anyone\n  in Ontario wondering whether a comet is worth going out for tonight. It plots every comet\n  currently within amateur reach on a live all-sky chart for your location, tells you in plain\n  terms what size of telescope or binoculars you would need from your own sky, draws dated finder\n  charts at three magnifications, and refreshes its positions and brightness from NASA's JPL\n  Horizons service every night.</p>\n</header>\n\n<noscript>\n  <div class=\"cmt__section\">\n    <div class=\"cmt-alert cmt-warn\"><span class=\"cmt-ic\">!</span><div>This tool needs JavaScript\n    for the charts and positions. Enable it, or email us the comet you are after and we will send\n    you a finder chart.</div></div>\n  </div>\n</noscript>\n\n<section class=\"cmt__section\">\n  <div class=\"cmt-flags\" id=\"cmt-flags\"></div>\n\n  <h2><span class=\"cmt-no\">01</span>Where are you observing from?</h2>\n  <p class=\"cmt-sec-note\">Altitude and moonlight end more comet sessions than magnitude does, and\n  both depend on where you stand. Everything here is computed in your browser.</p>\n\n  <div class=\"cmt-group\">\n    <h3>Site and filters</h3>\n    <div class=\"cmt-grid\">\n      <div class=\"cmt-field\">\n        <label for=\"cmt-site\">Observing site</label>\n        <select id=\"cmt-site\"></select>\n        <p class=\"cmt-sub\">Bortle rating sets the aperture advice.</p>\n      </div>\n      <div class=\"cmt-field\">\n        <label for=\"cmt-mag\">Faintest star you can see <span class=\"cmt-u\" id=\"cmt-magv\">mag 6.0</span></label>\n        <input type=\"range\" id=\"cmt-mag\" min=\"3\" max=\"7.5\" step=\"0.1\" value=\"6\">\n        <p class=\"cmt-sub\">Thins the sky chart to match your eyes.</p>\n      </div>\n      <div class=\"cmt-field\">\n        <label for=\"cmt-alt\">Minimum altitude <span class=\"cmt-u\" id=\"cmt-altv\">15\u00b0</span></label>\n        <input type=\"range\" id=\"cmt-alt\" min=\"0\" max=\"45\" step=\"1\" value=\"15\">\n        <p class=\"cmt-sub\">Below this, trees and haze win.</p>\n      </div>\n      <div class=\"cmt-field\">\n        <label for=\"cmt-el\">Minimum solar elongation <span class=\"cmt-u\" id=\"cmt-elv\">30\u00b0</span></label>\n        <input type=\"range\" id=\"cmt-el\" min=\"0\" max=\"90\" step=\"1\" value=\"30\">\n        <p class=\"cmt-sub\">Under 30\u00b0 it is lost in twilight.</p>\n      </div>\n    </div>\n    <div class=\"cmt-actions\">\n      <button class=\"cmt-btn cmt-sec\" id=\"cmt-geo\" type=\"button\">Use my location</button>\n      <button class=\"cmt-btn cmt-sec\" id=\"cmt-night\" type=\"button\" aria-pressed=\"false\">Night mode</button>\n      <button class=\"cmt-btn cmt-sec\" id=\"cmt-reload\" type=\"button\">Reload positions</button>\n    </div>\n  </div>\n</section>\n\n<section class=\"cmt__section\">\n  <h2><span class=\"cmt-no\">02</span>Your sky right now</h2>\n  <p class=\"cmt-sec-note\">Zenith at the centre, horizon at the rim, north at the top and east to\n  the left, as in a printed atlas. Drag the star-magnitude slider and the sky thins to match what\n  you can actually see.</p>\n  <div class=\"cmt-sky\">\n    <canvas id=\"cmt-dome\" width=\"900\" height=\"900\"\n      aria-label=\"All-sky chart showing horizon, stars, Moon and comet positions\"></canvas>\n  </div>\n  <div class=\"cmt-legend\">\n    <span><i></i>Comet</span>\n    <span><i class=\"cmt-moon\"></i>Moon</span>\n    <span id=\"cmt-legstars\">\u2014</span>\n    <span id=\"cmt-legdark\">\u2014</span>\n  </div>\n</section>\n\n<section class=\"cmt__section\">\n  <h2><span class=\"cmt-no\">03</span>What's out there</h2>\n  <p class=\"cmt-sec-note\">Brightest first. A red label means the figure is a real observation\n  rather than a forecast \u2014 trust those. Faded rows fail your altitude or elongation filter tonight.\n  Tap any comet for its finder chart.</p>\n  <div class=\"cmt-list\" id=\"cmt-list\"></div>\n  <p class=\"cmt-sec-note\" id=\"cmt-count\" style=\"margin-top:1rem\"></p>\n</section>\n\n<section class=\"cmt__section cmt-guide\">\n  <h2><span class=\"cmt-no\">04</span>How this works</h2>\n  <p class=\"cmt-sec-note\">No black box. Here is where every number comes from and\n  where it can let you down.</p>\n\n  <h3>The magnitude number</h3>\n  <p>Magnitude measures brightness, and it runs backwards: <b>lower numbers are\n  brighter</b>. Magnitude 6 is roughly the faintest star you can see with your eyes\n  from a properly dark site. Magnitude 13 is about a hundred thousand times fainter.\n  Each step of 1 is a factor of about 2.5.</p>\n  <p>Every magnitude on this page comes from NASA's JPL Horizons service, which\n  predicts it from the comet's orbit and its measured behaviour on previous passes.\n  It is the whole comet added together, coma and all.</p>\n\n  <h3>Why a comet is harder than a star of the same magnitude</h3>\n  <p>A star is a point. All its light lands in one spot, and your eye is good at\n  picking out points. A comet is a fuzzy ball several times the width of Jupiter as\n  it appears in the sky, and the same amount of light spread over that area is far\n  harder to notice \u2014 like the difference between a torch beam and the same bulb behind\n  frosted glass.</p>\n  <p>So we work out the aperture twice. First the size of telescope that would show a\n  <em>star</em> of that magnitude from your sky, using the standard light-grasp\n  relation. Then we increase it, because the comet is not a star. Checked against\n  published comet observing guidance from magnitude 8 down to 17, the real requirement\n  runs about two to three times the star figure, and that is the number shown.</p>\n\n  <div class=\"cmt-callout\">\n    <h4>Treat the aperture as a guide, not a promise</h4>\n    <p>How spread out a particular comet looks changes from week to week, and we have\n    no measurement of that for individual comets. A tightly condensed comet will be\n    easier than we say; a big diffuse one will be harder. Your sky matters more than\n    almost anything else \u2014 the same comet can be straightforward from Algonquin and\n    invisible from Toronto.</p>\n  </div>\n\n  <h3>Where the data comes from</h3>\n  <ul>\n    <li><b>Positions, distances and brightness</b> \u2014 NASA JPL Horizons, refreshed\n    every night. Horizons works out the full orbit including the small push a comet\n    gets from its own outgassing, which simpler methods miss.</li>\n    <li><b>Aperture guidance</b> \u2014 our own calculation, from the light-grasp relation\n    and the naked-eye limit for your sky. Method described above.</li>\n    <li><b>Stars, Sun and Moon</b> \u2014 Hipparcos and Yale Bright Star catalogues;\n    solar and lunar positions worked out in your browser.</li>\n  </ul>\n\n  <h3>What this page does not know</h3>\n  <ul>\n    <li><b>How diffuse each comet is right now.</b> The single biggest unknown. It\n    needs someone to look through an eyepiece and measure, and we do not have that\n    data.</li>\n    <li><b>Sudden outbursts.</b> Comets erupt without warning, sometimes brightening\n    a hundredfold in a day. A forecast from orbital behaviour cannot see that coming.\n    If a comet looks far brighter than we say, believe your eyes.</li>\n    <li><b>Cloud and seeing</b> \u2014 that is the\n    <a href=\"/pages/astronomy-weather-forecast\">Astronomy Weather Forecast</a>.</li>\n  </ul>\n\n  <h3>What to reach for</h3>\n  <div class=\"cmt-prodcards\">\n    <div class=\"cmt-prodcard\">\n      <h4>Binoculars</h4>\n      <p>The best comet instrument most nights. A wide field keeps the whole comet in\n      view with its contrast intact, which a long telescope cannot do.</p>\n      <a href=\"/collections/astronomy-binoculars\">Browse binoculars</a>\n    </div>\n    <div class=\"cmt-prodcard\">\n      <h4>Filters</h4>\n      <p>Comet gas glows in particular colours, so a UHC or Swan band filter can lift\n      one out of suburban skyglow. They do nothing for a dusty comet.</p>\n      <a href=\"/collections/filters\">Browse filters</a>\n    </div>\n    <div class=\"cmt-prodcard\">\n      <h4>More free tools</h4>\n      <p>Observing lists, weather scoring, ISS passes, focus stepping, flat frames,\n      guide scope matching and double-star resolving.</p>\n      <a href=\"/pages/free-utilities\">Free utilities</a>\n    </div>\n  </div>\n</section>\n\n<section class=\"cmt__section cmt-guide\">\n  <h2><span class=\"cmt-no\">05</span>Glossary</h2>\n  <p class=\"cmt-sec-note\">The terms this page uses, defined plainly. If you have arrived here from\n  a search engine or an AI assistant looking for one of these, this is the short version.</p>\n  <table class=\"cmt-g\">\n    <thead><tr><th>Term</th><th>What it means</th></tr></thead>\n    <tbody>\n      <tr><td>Magnitude</td><td>How bright something looks. Lower is brighter, and\n      each step of 1 is about two and a half times. Your eyes reach magnitude 6 under\n      a dark sky, roughly 4 from a city.</td></tr>\n      <tr><td>Coma</td><td>The fuzzy cloud of gas and dust around a comet. It is what\n      you actually see \u2014 the solid nucleus is only a few kilometres across and far too\n      small to make out.</td></tr>\n      <tr><td>Aperture</td><td>The width of your main lens or mirror. It decides how\n      much light you gather, and it is the number that matters most for faint\n      things.</td></tr>\n      <tr><td>AU</td><td>Astronomical unit: the distance from the Earth to the Sun,\n      about 150 million kilometres. Handy for comparing distances across the solar\n      system.</td></tr>\n      <tr><td>Perihelion</td><td>The point in the orbit closest to the Sun. Comets are\n      usually most active near it, though the best view from Earth can come weeks\n      before or after.</td></tr>\n      <tr><td>Angle from the Sun</td><td>How far the comet appears from the Sun in our\n      sky. Under about 30\u00b0 it is buried in twilight no matter how bright it is.</td></tr>\n      <tr><td>Outburst</td><td>A sudden unpredicted brightening, sometimes by a\n      hundredfold, when fresh material is exposed. Most fade within days.\n      29P/Schwassmann-Wachmann does it several times a year.</td></tr>\n      <tr><td>Bortle</td><td>A 1 to 9 scale for light pollution. 1 is a genuinely dark\n      wilderness sky, 9 is inner city. Toronto is about 8; Algonquin is about 2. It\n      changes what you can see more than your telescope does.</td></tr>\n      <tr><td>Altitude</td><td>How high something is above the horizon, in degrees.\n      Below about 20\u00b0 you are looking through a lot more air, and everything looks\n      worse.</td></tr>\n    </tbody>\n  </table>\n</section>\n\n<section class=\"cmt__section\">\n  <h2><span class=\"cmt-no\">06</span>Questions</h2>\n  <div class=\"cmt-faq\">\n    <details><summary>The magnitude here disagrees with another site. Which is right?</summary>\n      <div class=\"cmt-a\"><p>Ours is NASA's prediction from the comet's orbit, refreshed nightly.\n      Some other sites publish what people actually saw through a telescope last week. When a comet\n      is behaving normally the two agree closely. When it erupts, real observations will show it and\n      a prediction will not. If you see reports of a comet far brighter than we list, believe\n      them.</p></div></details>\n    <details><summary>Why does a magnitude 8 comet look like nothing through my telescope?</summary>\n      <div class=\"cmt-a\"><p>Because that brightness is smeared across a fuzzy patch rather than\n      concentrated in a point. A magnitude 8 star is obvious; a magnitude 8 comet can be a faint\n      smudge you might scan straight past. Turn the magnification down, not up \u2014 a wide, bright,\n      low-power view shows a comet far better than a narrow high-power one.</p></div></details>\n    <details><summary>How accurate are the charts?</summary>\n      <div class=\"cmt-a\"><p>Very. Star positions are standard catalogue data and comet positions\n      come from NASA to well under an arcsecond, updated nightly. You can star-hop with them, or\n      type the coordinates straight into a GoTo handset. The predicted brightness is the uncertain\n      part, not the position.</p></div></details>\n    <details><summary>Which comet should a beginner try first?</summary>\n      <div class=\"cmt-a\"><p>Whichever sits at the top of the list marked <b>Binoculars</b>, on a\n      night when the Moon is down. Use binoculars rather than a telescope, and expect a small round\n      smudge rather than the sweeping tail you have seen in photographs \u2014 tails are mostly a\n      camera phenomenon, not a visual one. Finding one at all is the achievement.</p></div></details>\n    <details><summary>Why is there a night mode?</summary>\n      <div class=\"cmt-a\"><p>Because this gets used at the eyepiece at two in the morning. A bright\n      screen destroys dark adaptation that took twenty minutes to build. Night mode drops the page\n      to a red-only ramp, which the dark-adapted eye barely registers.</p></div></details>\n    <details><summary>Is any of my data sent anywhere?</summary>\n      <div class=\"cmt-a\"><p>No. Comet positions are fetched from NASA JPL Horizons and that request\n      carries nothing about you. Your observing site is used only inside your own browser and is\n      never transmitted.</p></div></details>\n  </div>\n</section>\n\n<footer class=\"cmt__foot\">\n  <p class=\"cmt-rev\">Comet Tracker \u00b7 Rev 1.0 \u00b7 Reviewed August 2026 by Ontario Telescope &amp; Accessories</p>\n  <p class=\"cmt-priv\">All astronomical calculations run locally in your browser. Comet positions are\n  requested from NASA JPL Horizons; that request carries no information about you and nothing is\n  stored. Spotted a problem, or want a comet added?\n  <a href=\"/pages/contact-us\">Get in touch</a>.</p>\n  <p class=\"cmt-disc\">Comet positions and predicted brightness come from NASA's JPL\n  Horizons service and are refreshed every night. Horizons predicts brightness from each\n  comet's orbit; those predictions are fitted mainly to CCD measurements of the region\n  near the nucleus, while a visual observer sees the whole coma. In practice comets look\n  brighter than the prediction \u2014 across this list, by up to four magnitudes, and never\n  fainter. So the magnitudes shown are a worst case and the aperture figures are a\n  ceiling. Star positions from the Hipparcos and Yale Bright Star catalogues, prepared by\n  the d3-celestial project, Copyright (c) 2015 Olaf Frohn, used under the BSD 3-Clause\n  licence. Comet brightness is genuinely unpredictable \u2014 a comet can erupt without\n  warning and no forecast will see it coming. Treat every figure here as a guide and\n  never as a promise.</p>\n  <p class=\"cmt-disc\">\u00a9 2026 Ontario Telescope and Accessories Inc. All rights reserved. The tool,\n  its calculations and its explanatory text may not be reproduced without permission.</p>\n</footer>\n</div>\n\n";
+  mount.innerHTML="\n\n<div class=\"cmt\" id=\"cmt\" data-night=\"off\">\n\n<header class=\"cmt__head\">\n  <p class=\"cmt__eyebrow\">Free tool \u00b7 Ontario Telescope</p>\n  <h1>Is there a comet worth getting the scope out for?</h1>\n  <p class=\"cmt__standfirst\">Comet brightness forecasts are extrapolations from past behaviour,\n  and comets do not feel bound by them. One on this list is currently running six magnitudes ahead\n  of its own prediction.</p>\n  <p class=\"cmt__seo\">The Ontario Telescope Comet Tracker is a free observing tool for anyone\n  in Ontario wondering whether a comet is worth going out for tonight. It plots every comet\n  currently within amateur reach on a live all-sky chart for your location, tells you in plain\n  terms what size of telescope or binoculars you would need from your own sky, draws dated finder\n  charts at three magnifications, and refreshes its positions and brightness from NASA's JPL\n  Horizons service every night.</p>\n</header>\n\n<noscript>\n  <div class=\"cmt__section\">\n    <div class=\"cmt-alert cmt-warn\"><span class=\"cmt-ic\">!</span><div>This tool needs JavaScript\n    for the charts and positions. Enable it, or email us the comet you are after and we will send\n    you a finder chart.</div></div>\n  </div>\n</noscript>\n\n<section class=\"cmt__section\">\n  <div class=\"cmt-flags\" id=\"cmt-flags\"></div>\n\n  <h2><span class=\"cmt-no\">01</span>Where are you observing from?</h2>\n  <p class=\"cmt-sec-note\">Altitude and moonlight end more comet sessions than magnitude does, and\n  both depend on where you stand. Everything here is computed in your browser.</p>\n\n  <div class=\"cmt-group\">\n    <h3>Site and filters</h3>\n    <div class=\"cmt-grid\">\n      <div class=\"cmt-field\">\n        <label for=\"cmt-site\">Observing site</label>\n        <select id=\"cmt-site\"></select>\n        <p class=\"cmt-sub\">Bortle rating sets the aperture advice.</p>\n      </div>\n      <div class=\"cmt-field\">\n        <label for=\"cmt-mag\">Faintest star you can see <span class=\"cmt-u\" id=\"cmt-magv\">mag 6.0</span></label>\n        <input type=\"range\" id=\"cmt-mag\" min=\"3\" max=\"7.5\" step=\"0.1\" value=\"6\">\n        <p class=\"cmt-sub\">Thins the sky chart to match your eyes.</p>\n      </div>\n      <div class=\"cmt-field\">\n        <label for=\"cmt-alt\">Minimum altitude <span class=\"cmt-u\" id=\"cmt-altv\">15\u00b0</span></label>\n        <input type=\"range\" id=\"cmt-alt\" min=\"0\" max=\"45\" step=\"1\" value=\"15\">\n        <p class=\"cmt-sub\">Below this, trees and haze win.</p>\n      </div>\n      <div class=\"cmt-field\">\n        <label for=\"cmt-el\">Minimum solar elongation <span class=\"cmt-u\" id=\"cmt-elv\">30\u00b0</span></label>\n        <input type=\"range\" id=\"cmt-el\" min=\"0\" max=\"90\" step=\"1\" value=\"30\">\n        <p class=\"cmt-sub\">Under 30\u00b0 it is lost in twilight.</p>\n      </div>\n    </div>\n    <div class=\"cmt-actions\">\n      <button class=\"cmt-btn cmt-sec\" id=\"cmt-geo\" type=\"button\">Use my location</button>\n      <button class=\"cmt-btn cmt-sec\" id=\"cmt-night\" type=\"button\" aria-pressed=\"false\">Night mode</button>\n      <button class=\"cmt-btn cmt-sec\" id=\"cmt-reload\" type=\"button\">Reload positions</button>\n    </div>\n  </div>\n</section>\n\n<section class=\"cmt__section\">\n  <h2><span class=\"cmt-no\">02</span>Your sky right now</h2>\n  <p class=\"cmt-sec-note\">Zenith at the centre, horizon at the rim, north at the top and east to\n  the left, as in a printed atlas. Drag the star-magnitude slider and the sky thins to match what\n  you can actually see.</p>\n  <div class=\"cmt-sky\">\n    <canvas id=\"cmt-dome\" width=\"900\" height=\"900\"\n      aria-label=\"All-sky chart showing horizon, stars, Moon and comet positions\"></canvas>\n  </div>\n  <div class=\"cmt-legend\">\n    <span><i></i>Comet</span>\n    <span><i class=\"cmt-moon\"></i>Moon</span>\n    <span id=\"cmt-legstars\">\u2014</span>\n    <span id=\"cmt-legdark\">\u2014</span>\n  </div>\n</section>\n\n<section class=\"cmt__section\">\n  <h2><span class=\"cmt-no\">03</span>What's out there</h2>\n  <p class=\"cmt-sec-note\">Brightest first. A red label means the figure is a real observation\n  rather than a forecast \u2014 trust those. Faded rows fail your altitude or elongation filter tonight.\n  Tap any comet for its finder chart.</p>\n  <div class=\"cmt-list\" id=\"cmt-list\"></div>\n  <p class=\"cmt-sec-note\" id=\"cmt-count\" style=\"margin-top:1rem\"></p>\n</section>\n\n<section class=\"cmt__section cmt-guide\">\n  <h2><span class=\"cmt-no\">04</span>How this works</h2>\n  <p class=\"cmt-sec-note\">No black box. Here is where every number comes from and\n  where it can let you down.</p>\n\n  <h3>The magnitude number</h3>\n  <p>Magnitude measures brightness, and it runs backwards: <b>lower numbers are\n  brighter</b>. Magnitude 6 is roughly the faintest star you can see with your eyes\n  from a properly dark site. Magnitude 13 is about a hundred thousand times fainter.\n  Each step of 1 is a factor of about 2.5.</p>\n  <p>Every magnitude on this page comes from NASA's JPL Horizons service, which\n  predicts it from the comet's orbit and its measured behaviour on previous passes.\n  It is the whole comet added together, coma and all.</p>\n\n  <h3>Why a comet is harder than a star of the same magnitude</h3>\n  <p>A star is a point. All its light lands in one spot, and your eye is good at\n  picking out points. A comet is a fuzzy ball several times the width of Jupiter as\n  it appears in the sky, and the same amount of light spread over that area is far\n  harder to notice \u2014 like the difference between a torch beam and the same bulb behind\n  frosted glass.</p>\n  <p>So we work out the aperture twice. First the size of telescope that would show a\n  <em>star</em> of that magnitude from your sky, using the standard light-grasp relation.\n  Then we increase it, because a comet is not a star. An extended object of a given total\n  magnitude carries roughly a two-magnitude detection penalty against a point of the same\n  brightness, which works out at about two and a half times the aperture. That is the\n  number shown.</p>\n\n  <div class=\"cmt-callout\">\n    <h4>Treat the aperture as a starting point</h4>\n    <p>The brightness it rests on is NASA's prediction from a magnitude law fitted to\n    each comet's past behaviour. That fit can be well out in either direction, and it\n    cannot anticipate an outburst \u2014 comets erupt without warning, sometimes brightening\n    a hundredfold in a day. How spread out a particular comet looks also changes from\n    week to week, and we have no measurement of that. A tightly condensed comet will be\n    easier than we say; a large diffuse one harder. Your sky matters more than almost\n    anything else.</p>\n  </div>\n\n  <h3>Where the data comes from</h3>\n  <ul>\n    <li><b>Positions, distances and brightness</b> \u2014 NASA JPL Horizons, refreshed\n    every night. Horizons works out the full orbit including the small push a comet\n    gets from its own outgassing, which simpler methods miss.</li>\n    <li><b>Aperture guidance</b> \u2014 our own calculation, from the light-grasp relation\n    and the naked-eye limit for your sky. Method described above.</li>\n    <li><b>Stars, Sun and Moon</b> \u2014 Hipparcos and Yale Bright Star catalogues;\n    solar and lunar positions worked out in your browser.</li>\n  </ul>\n\n  <h3>What this page does not know</h3>\n  <ul>\n    <li><b>How diffuse each comet is right now.</b> The single biggest unknown. It\n    needs someone to look through an eyepiece and measure, and we do not have that\n    data.</li>\n    <li><b>Sudden outbursts.</b> Comets erupt without warning, sometimes brightening\n    a hundredfold in a day. A forecast from orbital behaviour cannot see that coming.\n    If a comet looks far brighter than we say, believe your eyes.</li>\n    <li><b>Cloud and seeing</b> \u2014 that is the\n    <a href=\"/pages/astronomy-weather-forecast\">Astronomy Weather Forecast</a>.</li>\n  </ul>\n\n  <h3>What to reach for</h3>\n  <div class=\"cmt-prodcards\">\n    <div class=\"cmt-prodcard\">\n      <h4>Binoculars</h4>\n      <p>The best comet instrument most nights. A wide field keeps the whole comet in\n      view with its contrast intact, which a long telescope cannot do.</p>\n      <a href=\"/collections/astronomy-binoculars\">Browse binoculars</a>\n    </div>\n    <div class=\"cmt-prodcard\">\n      <h4>Filters</h4>\n      <p>Comet gas glows in particular colours, so a UHC or Swan band filter can lift\n      one out of suburban skyglow. They do nothing for a dusty comet.</p>\n      <a href=\"/collections/filters\">Browse filters</a>\n    </div>\n    <div class=\"cmt-prodcard\">\n      <h4>More free tools</h4>\n      <p>Observing lists, weather scoring, ISS passes, focus stepping, flat frames,\n      guide scope matching and double-star resolving.</p>\n      <a href=\"/pages/free-utilities\">Free utilities</a>\n    </div>\n  </div>\n</section>\n\n<section class=\"cmt__section cmt-guide\">\n  <h2><span class=\"cmt-no\">05</span>Glossary</h2>\n  <p class=\"cmt-sec-note\">The terms this page uses, defined plainly. If you have arrived here from\n  a search engine or an AI assistant looking for one of these, this is the short version.</p>\n  <table class=\"cmt-g\">\n    <thead><tr><th>Term</th><th>What it means</th></tr></thead>\n    <tbody>\n      <tr><td>Magnitude</td><td>How bright something looks. Lower is brighter, and\n      each step of 1 is about two and a half times. Your eyes reach magnitude 6 under\n      a dark sky, roughly 4 from a city.</td></tr>\n      <tr><td>Coma</td><td>The fuzzy cloud of gas and dust around a comet. It is what\n      you actually see \u2014 the solid nucleus is only a few kilometres across and far too\n      small to make out.</td></tr>\n      <tr><td>Aperture</td><td>The width of your main lens or mirror. It decides how\n      much light you gather, and it is the number that matters most for faint\n      things.</td></tr>\n      <tr><td>AU</td><td>Astronomical unit: the distance from the Earth to the Sun,\n      about 150 million kilometres. Handy for comparing distances across the solar\n      system.</td></tr>\n      <tr><td>Perihelion</td><td>The point in the orbit closest to the Sun. Comets are\n      usually most active near it, though the best view from Earth can come weeks\n      before or after.</td></tr>\n      <tr><td>Angle from the Sun</td><td>How far the comet appears from the Sun in our\n      sky. Under about 30\u00b0 it is buried in twilight no matter how bright it is.</td></tr>\n      <tr><td>Outburst</td><td>A sudden unpredicted brightening, sometimes by a\n      hundredfold, when fresh material is exposed. Most fade within days.\n      29P/Schwassmann-Wachmann does it several times a year.</td></tr>\n      <tr><td>Bortle</td><td>A 1 to 9 scale for light pollution. 1 is a genuinely dark\n      wilderness sky, 9 is inner city. Toronto is about 8; Algonquin is about 2. It\n      changes what you can see more than your telescope does.</td></tr>\n      <tr><td>Altitude</td><td>How high something is above the horizon, in degrees.\n      Below about 20\u00b0 you are looking through a lot more air, and everything looks\n      worse.</td></tr>\n    </tbody>\n  </table>\n</section>\n\n<section class=\"cmt__section\">\n  <h2><span class=\"cmt-no\">06</span>Questions</h2>\n  <div class=\"cmt-faq\">\n    <details><summary>The magnitude here disagrees with another site. Which is right?</summary>\n      <div class=\"cmt-a\"><p>Ours is NASA's prediction from the comet's orbit, refreshed nightly.\n      Some other sites publish what people actually saw through a telescope last week. When a comet\n      is behaving normally the two agree closely. When it erupts, real observations will show it and\n      a prediction will not. If you see reports of a comet far brighter than we list, believe\n      them.</p></div></details>\n    <details><summary>Why does a magnitude 8 comet look like nothing through my telescope?</summary>\n      <div class=\"cmt-a\"><p>Because that brightness is smeared across a fuzzy patch rather than\n      concentrated in a point. A magnitude 8 star is obvious; a magnitude 8 comet can be a faint\n      smudge you might scan straight past. Turn the magnification down, not up \u2014 a wide, bright,\n      low-power view shows a comet far better than a narrow high-power one.</p></div></details>\n    <details><summary>How accurate are the charts?</summary>\n      <div class=\"cmt-a\"><p>Very. Star positions are standard catalogue data and comet positions\n      come from NASA to well under an arcsecond, updated nightly. You can star-hop with them, or\n      type the coordinates straight into a GoTo handset. The predicted brightness is the uncertain\n      part, not the position.</p></div></details>\n    <details><summary>Which comet should a beginner try first?</summary>\n      <div class=\"cmt-a\"><p>Whichever sits at the top of the list marked <b>Binoculars</b>, on a\n      night when the Moon is down. Use binoculars rather than a telescope, and expect a small round\n      smudge rather than the sweeping tail you have seen in photographs \u2014 tails are mostly a\n      camera phenomenon, not a visual one. Finding one at all is the achievement.</p></div></details>\n    <details><summary>Why is there a night mode?</summary>\n      <div class=\"cmt-a\"><p>Because this gets used at the eyepiece at two in the morning. A bright\n      screen destroys dark adaptation that took twenty minutes to build. Night mode drops the page\n      to a red-only ramp, which the dark-adapted eye barely registers.</p></div></details>\n    <details><summary>Is any of my data sent anywhere?</summary>\n      <div class=\"cmt-a\"><p>No. Comet positions are fetched from NASA JPL Horizons and that request\n      carries nothing about you. Your observing site is used only inside your own browser and is\n      never transmitted.</p></div></details>\n  </div>\n</section>\n\n<footer class=\"cmt__foot\">\n  <p class=\"cmt-rev\">Comet Tracker \u00b7 Rev 1.0 \u00b7 Reviewed August 2026 by Ontario Telescope &amp; Accessories</p>\n  <p class=\"cmt-priv\">All astronomical calculations run locally in your browser. Comet positions are\n  requested from NASA JPL Horizons; that request carries no information about you and nothing is\n  stored. Spotted a problem, or want a comet added?\n  <a href=\"/pages/contact-us\">Get in touch</a>.</p>\n  <p class=\"cmt-disc\">Comet positions and predicted brightness come from NASA's JPL\n  Horizons service, credit NASA/JPL-Caltech, refreshed every night. Which comets appear\n  here is decided each night from NASA's Small-Body Database: every comet with published\n  magnitude parameters whose computed brightness puts it within reach. Aperture is our\n  own calculation from the light-grasp relation plus a two-magnitude extended-object\n  penalty. Horizons predicts brightness from a magnitude law fitted to each comet's past\n  observations; that fit can be well out in either direction and cannot anticipate an\n  outburst. Treat every figure here as a guide and never as a promise.</p>\n\n  <details style=\"margin-top:1rem\">\n  <summary style=\"cursor:pointer;color:var(--brand)\">Star catalogue licence (BSD 3-Clause)</summary>\n  <p class=\"cmt-disc\" style=\"margin-top:.6rem\">Star positions, names and constellation\n  figures are derived from the Hipparcos and Yale Bright Star catalogues as prepared by\n  the d3-celestial project.</p>\n  <pre class=\"cmt-disc\" style=\"white-space:pre-wrap;font-family:var(--mono);font-size:.72rem;\n  line-height:1.5;background:var(--sunken);padding:.9rem 1rem;border-radius:3px;overflow-x:auto\">Copyright (c) 2015, Olaf Frohn\nAll rights reserved.\n\nRedistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:\n\n1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.\n\n2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.\n\n3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</pre>\n  <p class=\"cmt-disc\">Neither the name of the copyright holder nor of the contributors is\n  used to endorse or promote this tool.</p>\n  </details>\n  <p class=\"cmt-disc\">\u00a9 2026 Ontario Telescope and Accessories Inc. All rights reserved. The tool,\n  its calculations and its explanatory text may not be reproduced without permission.</p>\n</footer>\n</div>\n\n";
 
 (function(){
 "use strict";
-var COMETS=[
- {id:"220P",name:"220P/McNaught"},   {id:"10P",name:"10P/Tempel"},
- {id:"88P", name:"88P/Howell"},      {id:"78P", name:"78P/Gehrels"},
- {id:"29P", name:"29P/Schwassmann-Wachmann", note:"Orbits permanently between 5.8 and 6.3 AU, so it never comes close and never goes away. Erupts unpredictably by 1 to 4 magnitudes several times a year, which makes it worth a look on any clear night whatever the forecast says."},
- {id:"169P",name:"169P/NEAT"},       {id:"2025R3",name:"C/2025 R3 (PANSTARRS)"},
- {id:"2024J3",name:"C/2024 J3 (ATLAS)"}, {id:"2023R1",name:"C/2023 R1 (PANSTARRS)"},
- {id:"260P",name:"260P/McNaught"},   {id:"2024R4",name:"C/2024 R4 (PANSTARRS)"},
- {id:"63P", name:"63P/Wild"},        {id:"2026A2",name:"C/2026 A2 (Bok)"},
- {id:"161P",name:"161P/Hartley-IRAS"}
-];
+// The roster is not held here. It is derived nightly from JPL's Small-Body
+// Database by fetch_comets.py and arrives in the feed, so the choice of which
+// comets to list rests on public NASA data and our own criteria rather than on
+// anyone else's published selection.
+var COMETS=[];
+
+// No editorial notes. Everything shown is computed from the feed, so nothing
+// on this page depends on another publication's description of a comet.
 var STARS=[],CONST=[],CONNAMES=[];
 var SITES=[
  {n:"Toronto",lat:43.6532,lon:-79.3832,b:8},{n:"Mississauga",lat:43.5890,lon:-79.6441,b:8},
@@ -127,9 +151,15 @@ function loadEph(){
   }).then(function(d){
     if(!d||!d.ephemerides)throw new Error("unexpected feed format");
     var n=0;
-    COMETS.forEach(function(c){
-      var rows=d.ephemerides[c.id];
-      if(rows&&rows.length){S.eph[c.id]=rows;n++;}});
+    COMETS.length=0;
+    var names=d.names||{};
+    Object.keys(d.ephemerides).forEach(function(id){
+      var rows=d.ephemerides[id];
+      if(!rows||!rows.length)return;
+      S.eph[id]=rows;n++;
+      COMETS.push({id:id, name:names[id]||id});
+    });
+    S.selection=d.selection||null;
     S.generated=d.generated||null;
     S.ageDays=S.generated?(Date.now()-new Date(S.generated))/864e5:null;
     if(n===0){S.fetch="bad";S.note="feed contained no usable comets";}
@@ -162,10 +192,20 @@ function ephAt(id,jd){var r=S.eph[id];
 
    Aperture: light grasp over the dark-adapted eye,
        limiting magnitude = naked-eye limit + 5*log10(D / 7mm)
-   which gives the aperture needed for a POINT of that brightness. A comet
-   is not a point, so it needs more. Checked against published comet
-   guidance across magnitudes 8 to 17, the real requirement runs about
-   2 to 3 times the point-source aperture, so that is what we show.
+   which gives the aperture needed for a POINT of that brightness.
+
+   A comet is not a point. Its light is spread across a coma, and an
+   extended object of a given integrated magnitude is harder to detect
+   than a star of the same magnitude. For a coma of the few-arcminute
+   size typical of a visual comet, the detection penalty is about two
+   magnitudes (Clark, Visual Astronomy of the Deep Sky, 1990, ch. 2 on
+   contrast and threshold detection; the same figure is standard in
+   general observing guidance).
+
+   Two magnitudes of penalty converts to aperture as 10^(2/5) = 2.512,
+   so the required aperture is about 2.5x the point-source figure. That
+   factor is derived from the magnitude penalty, not fitted to anyone
+   else's published aperture recommendations.
    ---------------------------------------------------------------------- */
 var NELM={1:7.8,2:7.3,3:6.8,4:6.3,5:5.8,6:5.3,7:4.8,8:4.3,9:4.0};
 function nelm(){return NELM[S.site.b]||5.8;}
@@ -176,8 +216,12 @@ function magOf(c){
 }
 // Aperture in mm for a point source of this magnitude under this sky.
 function pointAperture(mag){return 7*Math.pow(10,(mag-nelm())/5);}
-// What a comet actually needs: the coma spreads the light out.
-function cometAperture(mag){return pointAperture(mag)*2.5;}
+// What a comet actually needs. 2 magnitudes of extended-object penalty
+// is 10^(2/5) in aperture; see the derivation above.
+var EXTENDED_PENALTY_MAG=2.0;
+function cometAperture(mag){
+  return pointAperture(mag)*Math.pow(10,EXTENDED_PENALTY_MAG/5);
+}
 
 function gearFor(mm){
   if(mm<=7)   return {t:"Your eyes",         s:"No equipment needed.", u:null};
@@ -192,20 +236,19 @@ function gearFor(mm){
           u:"/collections/smart-telescopes"};
 }
 
-// NASA's brightness model is fitted mainly to CCD measurements, which sample a
-// small area around the nucleus. A visual observer sees the whole coma, which is
-// brighter. Across this list the model runs 0 to 4 magnitudes faint and is never
-// optimistic, so the figure is a worst case and the aperture it implies is a
-// ceiling rather than a target.
+// NASA predicts brightness from a magnitude law fitted to past observations
+// of each comet. That fit can be well off in either direction, and it cannot
+// anticipate an outburst at all. So the aperture below is an estimate from
+// the predicted magnitude, not a measurement, and the page says so.
 function verdictFor(mag){
   if(mag==null)return "Brightness unavailable.";
   var mm=cometAperture(mag);
-  if(mm<=7)   return "Visible without any equipment.";
-  if(mm<=35)  return "A binocular target.";
-  if(mm<=130) return "Within reach of a small telescope, and possibly binoculars.";
-  if(mm<=330) return "Worth a proper telescope and a dark sky.";
-  if(mm<=700) return "Difficult, though comets often beat the prediction.";
-  return "Probably beyond visual reach. A camera will still record it.";
+  if(mm<=7)   return "Bright enough for the unaided eye, if the prediction holds.";
+  if(mm<=35)  return "A binocular target on the predicted brightness.";
+  if(mm<=130) return "Within reach of a small telescope on the predicted brightness.";
+  if(mm<=330) return "Wants a proper telescope and a dark sky.";
+  if(mm<=700) return "Difficult: large telescope, dark sky, patient observer.";
+  return "Predicted well beyond visual reach. A camera will still record it.";
 }
 
 function trendOf(c){
@@ -217,6 +260,21 @@ function trendOf(c){
   if(d<-0.2)return{w:"getting brighter",a:"\u2191"};
   if(d> 0.2)return{w:"fading",a:"\u2193"};
   return{w:"holding steady",a:"\u2192"};
+}
+
+// The dust and gas tail is pushed directly away from the Sun, so its
+// direction on the sky is exactly computable from the two positions. This
+// is the one thing about a comet's APPEARANCE that JPL data pins down.
+function tailPA(c){
+  var jd=toJD(S.now), e=ephAt(c.id,jd); if(!e)return null;
+  var s=sunPos(jd);
+  var d=(s.ra-e.ra)*D2R, dc=e.dec*D2R, ds=s.dec*D2R;
+  var pa=Math.atan2(Math.sin(d), Math.cos(dc)*Math.tan(ds)-Math.sin(dc)*Math.cos(d))*R2D;
+  return n360(pa+180);          // anti-solar
+}
+function paWord(pa){
+  var d=["north","north-east","east","south-east","south","south-west","west","north-west"];
+  return d[Math.round(n360(pa)/45)%8];
 }
 
 // Best moment tonight, and how high it gets.
@@ -296,12 +354,13 @@ function drawDome(){
 function col_font(){
   return getComputedStyle(el("cmt")).getPropertyValue("--mono").trim()||"monospace";}
 
-/* ---- finder chart ---- */
-// Which constellation is this patch of sky? Constellation label anchors sit at
-// the centre of each figure, so nearest-anchor puts the edge of a big
-// constellation like Cetus in its small neighbour. Instead take the nearest
-// Bayer/Flamsteed star, whose designation already names its constellation
-// ("μ Cet"). Those 4,266 stars average under two degrees apart.
+/* ---- sky chart ----------------------------------------------------------
+   One chart carrying everything: constellation lines, named stars, the
+   comet's dated track, its position as a marker, and the direction the
+   tail points. The comet is drawn as a crosshair, never as a glowing
+   object — it marks where to look, it does not claim to show what you
+   would see.
+   -------------------------------------------------------------------- */
 var _conAbbr=null;
 function conName(abbr){
   if(!_conAbbr){_conAbbr={};
@@ -312,33 +371,39 @@ function conAt(ra,dec){
   var best="",bd=1e9;
   for(var i=0;i<STARS.length;i++){
     var s=STARS[i];
-    if(s.length<5||s[4]!==0)continue;          // designated stars only
+    if(s.length<5||s[4]!==0)continue;
     var sp=s[3].lastIndexOf(" ");
     if(sp<0)continue;
-    if(Math.abs(s[1]-dec)>bd)continue;         // cheap reject before the trig
+    if(Math.abs(s[1]-dec)>bd)continue;
     var d=sep(ra,dec,s[0],s[1]);
     if(d<bd){bd=d;best=s[3].slice(sp+1);}}
   return best?conName(best):"";
 }
-function drawFinder(cv,c,fov){
+
+function drawChart(cv,c,fov){
   var x=cv.getContext("2d"),dpr=Math.min(2,window.devicePixelRatio||1);
-  var W=cv.clientWidth||420,H=Math.round(W*.78);
+  var W=cv.clientWidth||460,H=Math.round(W*0.78);
   cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+"px";
   x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
-  var jd=toJD(S.now),e=ephAt(c.id,jd);
+  x.fillStyle=col("sky");x.fillRect(0,0,W,H);
+
+  var jd=toJD(S.now),e=ephAt(c.id,jd),m=magOf(c);
   var cStar=col("star"),cBrand=col("brand"),cSoft=col("ink-soft"),
-      cSky=col("skyline"),cInk=col("ink"),cAcc=col("accent"),mono=col_font();
+      cSky=col("skyline"),cInk=col("ink"),mono=col_font();
   if(!e){x.fillStyle=cSoft;x.textAlign="center";x.font="12px "+mono;
     x.fillText("No position data",W/2,H/2);return;}
-  var ra0=e.ra*D2R,d0=e.dec*D2R,sc=(Math.min(W,H)/2)/(fov/2);
-  function P(ra,dec){var r=ra*D2R,d=dec*D2R;
+
+  var ra0=e.ra*D2R,d0=e.dec*D2R,sc=(Math.min(W,H)/2)/(fov/2),cx=W/2,cy=H/2;
+  function P(ra,dec){
+    var r=ra*D2R,d=dec*D2R;
     var cc=Math.sin(d0)*Math.sin(d)+Math.cos(d0)*Math.cos(d)*Math.cos(r-ra0);
     if(cc<.02)return null; var k=2/(1+cc);
-    return[W/2-k*Math.cos(d)*Math.sin(r-ra0)*R2D*sc,
-           H/2-k*(Math.cos(d0)*Math.sin(d)-Math.sin(d0)*Math.cos(d)*Math.cos(r-ra0))*R2D*sc];}
+    return[cx-k*Math.cos(d)*Math.sin(r-ra0)*R2D*sc,
+           cy-k*(Math.cos(d0)*Math.sin(d)-Math.sin(d0)*Math.cos(d)*Math.cos(r-ra0))*R2D*sc];
+  }
 
-  // Constellation lines first — the strongest orientation cue there is.
-  x.strokeStyle=cSky;x.lineWidth=1;x.globalAlpha=.85;
+  // constellation lines first — the strongest orientation cue
+  x.strokeStyle=cSky;x.lineWidth=1;x.globalAlpha=.8;
   CONST.forEach(function(f){f[1].forEach(function(seg){
     var on=false;x.beginPath();
     seg.forEach(function(p){var q=P(p[0],p[1]);
@@ -347,76 +412,92 @@ function drawFinder(cv,c,fov){
     x.stroke();});});
   x.globalAlpha=1;
 
-  // Thresholds set from measured density against the real catalogue: at 30°
-  // these give a median of 16 labels per chart, at 6° a median of 3. Tighter
-  // cuts left the medium field with nothing at all to read.
-  var lim   = fov>20 ? 6.0 : 7.5;
-  var propLim = fov>20 ? 5.0 : 7.5;
-  var desLim  = fov>20 ? 4.2 : 7.5;
-
-  var placed=[];                       // crude collision avoidance
+  // stars, brightest first so the important labels win the space
+  var lim=fov>20?6.0:7.5;
+  var labelAll=fov<=12;                 // wide fields would turn to mush
+  var placed=[],pool=[];
+  for(var i=0;i<STARS.length;i++){
+    var s=STARS[i];
+    if(s[2]>lim)continue;
+    if(Math.abs(s[1]-e.dec)>fov*0.9+2)continue;
+    pool.push(s);
+  }
+  pool.sort(function(p,q){return p[2]-q[2];});
   function free(bx,by,bw,bh){
     for(var i=0;i<placed.length;i++){var p=placed[i];
       if(bx<p[0]+p[2]&&bx+bw>p[0]&&by<p[1]+p[3]&&by+bh>p[1])return false;}
     placed.push([bx,by,bw,bh]);return true;}
+  for(var j=0;j<pool.length;j++){
+    var s=pool[j],p=P(s[0],s[1]);
+    if(!p||p[0]<-6||p[0]>W+6||p[1]<-6||p[1]>H+6)continue;
+    var rad=Math.max(.7,(lim-s[2]+.9)*.55);
+    x.globalAlpha=Math.min(1,.40+(lim-s[2])*.18);
+    x.fillStyle=cStar;x.beginPath();x.arc(p[0],p[1],rad,0,7);x.fill();
+    x.globalAlpha=1;
+    if(s.length>4&&(s[4]===1||labelAll)){
+      var pr=s[4]===1;
+      x.font=(pr?"600 11px ":"400 10px ")+mono;
+      var w=x.measureText(s[3]).width,gx=p[0]+rad+5,gy=p[1]+4;
+      if(gx+w>W-6)gx=p[0]-rad-5-w;
+      if(!free(gx-1,gy-10,w+2,13))continue;
+      x.fillStyle=pr?cInk:cSoft;x.globalAlpha=pr?.95:.72;
+      x.fillText(s[3],gx,gy);x.globalAlpha=1;
+    }
+  }
 
-  var labels=[];
-  for(var i=0;i<STARS.length;i++){var s=STARS[i];
-    if(s[2]>lim)continue; if(Math.abs(s[1]-e.dec)>fov*.9+2)continue;
-    var p=P(s[0],s[1]); if(!p)continue;
-    if(p[0]<-6||p[0]>W+6||p[1]<-6||p[1]>H+6)continue;
-    var rad=Math.max(.6,(lim-s[2]+.8)*.55);
-    x.globalAlpha=Math.min(1,.4+(lim-s[2])*.2);x.fillStyle=cStar;
-    x.beginPath();x.arc(p[0],p[1],rad,0,7);x.fill();
-    if(s.length>3){
-      var isProper=s[4]===1;
-      if(s[2]<=(isProper?propLim:desLim)) labels.push([p[0],p[1],s[3],isProper,rad,s[2]]);}}
-  x.globalAlpha=1;
-
-  // Brightest first, so the important names win the space.
-  labels.sort(function(a,b){return a[5]-b[5];});
-  labels.forEach(function(L){
-    x.font=(L[3]?"600 ":"400 ")+(L[3]?11:10)+"px "+mono;
-    var w=x.measureText(L[2]).width, gx=L[0]+L[4]+4, gy=L[1]+3.5;
-    if(gx+w>W-6) gx=L[0]-L[4]-4-w;          // flip inside the frame
-    if(!free(gx-1,gy-10,w+2,13))return;
-    x.fillStyle=L[3]?cInk:cSoft;
-    x.globalAlpha=L[3]?.95:.72;
-    x.fillText(L[2],gx,gy);x.globalAlpha=1;});
-
-  // comet track
+  // the comet's path, with dated ticks
   var rows=S.eph[c.id]||[];
-  x.strokeStyle=cBrand;x.globalAlpha=.6;x.lineWidth=1.2;x.setLineDash([3,3]);x.beginPath();
-  var on=false;rows.forEach(function(r){var p=P(r.ra,r.dec);
-    if(!p){on=false;return;} if(!on){x.moveTo(p[0],p[1]);on=true;}else x.lineTo(p[0],p[1]);});
+  x.strokeStyle=cBrand;x.globalAlpha=.6;x.lineWidth=1.2;x.setLineDash([3,3]);
+  x.beginPath();var on=false;
+  rows.forEach(function(r){var p=P(r.ra,r.dec);
+    if(!p){on=false;return;}
+    if(!on){x.moveTo(p[0],p[1]);on=true;}else x.lineTo(p[0],p[1]);});
   x.stroke();x.setLineDash([]);x.globalAlpha=1;
   x.font="9.5px "+mono;x.textAlign="left";
-  var stp=fov>8?7:3;
-  for(var j=0;j<rows.length;j+=stp){var q=P(rows[j].ra,rows[j].dec);
-    if(!q||q[0]<8||q[0]>W-8||q[1]<8||q[1]>H-8)continue;
-    x.fillStyle=cBrand;x.globalAlpha=.85;x.fillRect(q[0]-1.5,q[1]-1.5,3,3);x.globalAlpha=.6;
-    x.fillText(new Date((rows[j].jd-2440587.5)*864e5)
-      .toLocaleDateString(undefined,{month:"short",day:"numeric"}),q[0]+5,q[1]-4);}
+  var stp=fov>12?7:3;
+  for(var k=0;k<rows.length;k+=stp){
+    var q=P(rows[k].ra,rows[k].dec);
+    if(!q||q[0]<10||q[0]>W-10||q[1]<10||q[1]>H-10)continue;
+    x.fillStyle=cBrand;x.globalAlpha=.85;x.fillRect(q[0]-1.5,q[1]-1.5,3,3);
+    x.globalAlpha=.65;
+    x.fillText(new Date((rows[k].jd-2440587.5)*864e5)
+      .toLocaleDateString(undefined,{month:"short",day:"numeric"}),q[0]+5,q[1]-4);
+  }
   x.globalAlpha=1;
 
-  // the comet itself, labelled
-  var pc=P(e.ra,e.dec);
-  if(pc){var cp=Math.max(5,(comaOf(c)/60)*sc);
-    x.strokeStyle=cBrand;x.lineWidth=1.6;x.beginPath();x.arc(pc[0],pc[1],cp,0,7);x.stroke();
-    x.globalAlpha=.16;x.fillStyle=cBrand;x.fill();x.globalAlpha=1;
-    x.font="600 11px "+mono;x.fillStyle=cBrand;x.textAlign="left";
-    var nm=c.name.split(" ")[0];
-    x.fillText(nm,Math.min(pc[0]+cp+5,W-6-x.measureText(nm).width),pc[1]+4);}
+  // the comet: a marker, deliberately not a picture of an object
+  x.strokeStyle=cBrand;x.lineWidth=1.6;
+  x.beginPath();x.arc(cx,cy,11,0,7);x.stroke();
+  [[-19,0,-14,0],[14,0,19,0],[0,-19,0,-14],[0,14,0,19]].forEach(function(l){
+    x.beginPath();x.moveTo(cx+l[0],cy+l[1]);x.lineTo(cx+l[2],cy+l[3]);x.stroke();});
 
-  // frame furniture
-  x.strokeStyle=cSoft;x.lineWidth=1;
-  var bd=fov>8?5:(fov>2?1:.25),bp=bd*sc;
-  x.beginPath();x.moveTo(12,H-14);x.lineTo(12+bp,H-14);x.stroke();
-  x.fillStyle=cSoft;x.font="10px "+mono;x.textAlign="left";
-  x.fillText(bd>=1?bd+"\u00B0":(bd*60)+"\u2032",12,H-20);
-  x.textAlign="right";x.fillText("N up \u00B7 E left",W-12,H-20);
-  x.textAlign="left";x.fillStyle=cAcc;x.font="600 11px "+mono;
-  x.fillText(conAt(e.ra,e.dec),12,16);}
+  // and which way the tail is pushed, computed exactly
+  var pa=tailPA(c);
+  if(pa!=null){
+    var th=pa*D2R,ax=-Math.sin(th),ay=-Math.cos(th),L0=20,L1=68;
+    x.setLineDash([5,4]);x.beginPath();
+    x.moveTo(cx+ax*L0,cy+ay*L0);x.lineTo(cx+ax*L1,cy+ay*L1);x.stroke();x.setLineDash([]);
+    x.beginPath();
+    x.moveTo(cx+ax*(L1+8),cy+ay*(L1+8));
+    x.lineTo(cx+ax*L1-ay*4.5,cy+ay*L1+ax*4.5);
+    x.lineTo(cx+ax*L1+ay*4.5,cy+ay*L1-ax*4.5);
+    x.closePath();x.fillStyle=cBrand;x.fill();
+    x.font="600 10px "+mono;x.textAlign="center";
+    x.fillText("tail",cx+ax*(L1+19),cy+ay*(L1+19)+4);
+  }
+
+  // furniture
+  x.fillStyle=cSoft;x.font="10px "+mono;
+  x.textAlign="center";x.fillText("N",cx,14);
+  x.textAlign="left";x.fillText("E",8,cy+4);
+  var bd=fov>20?10:(fov>8?2:1);
+  x.strokeStyle=cSoft;x.lineWidth=1.2;
+  x.beginPath();x.moveTo(14,H-14);x.lineTo(14+bd*sc,H-14);x.stroke();
+  x.fillText(bd+"\u00B0",14,H-20);
+  x.textAlign="right";x.fillText("N up \u00B7 E left",W-10,H-14);
+  x.textAlign="left";x.fillStyle=col("accent");x.font="600 11px "+mono;
+  x.fillText(conAt(e.ra,e.dec),12,18);
+}
 
 /* ---- brightness curve, straight from the JPL track ---- */
 function drawCurve(cv,c){
@@ -519,8 +600,8 @@ function drawList(){
           '<div class="cmt-kpi"><div class="cmt-l">Brightness</div><div class="cmt-v">'+
             (m!=null?m.toFixed(1):"\u2014")+'</div><div class="cmt-d">magnitude \u2014 '+
             'lower is brighter</div></div>'+
-          '<div class="cmt-kpi"><div class="cmt-l">At most you will need</div><div class="cmt-v cmt-sm">'+
-            (g?g.t:"\u2014")+'</div><div class="cmt-d">'+(g?g.s+' Often far less \u2014 see below.':"")+'</div></div>'+
+          '<div class="cmt-kpi"><div class="cmt-l">You will likely need</div><div class="cmt-v cmt-sm">'+
+            (g?g.t:"\u2014")+'</div><div class="cmt-d">'+(g?g.s+' Estimated \u2014 see below.':"")+'</div></div>'+
           '<div class="cmt-kpi"><div class="cmt-l">Best time tonight</div><div class="cmt-v cmt-sm">'+
             (t&&pass?hm(t.jd):"not up")+'</div><div class="cmt-d">'+
             (t&&pass?'<b>'+t.alt.toFixed(0)+'\u00B0</b> above the '+compass(t.az)+' horizon':
@@ -533,18 +614,26 @@ function drawList(){
         '<div class="cmt-alert cmt-info"><span class="cmt-ic">i</span><div><b>'+
           verdictFor(m)+'</b>'+
           (mm?' From a Bortle '+S.site.b+' sky like '+S.site.n+', magnitude '+
-              (m!=null?m.toFixed(1):'?')+' would need about '+
-              (mm<25?'25mm':Math.round(mm/10)*10+'mm')+' of aperture. Treat that as '+
-              'a ceiling: this is NASA\u2019s orbital prediction, and real comets run '+
-              'up to four magnitudes brighter than it. Try something smaller first.':'')+
-          (c.note?' '+c.note:'')+'</div></div>'+
-        '<div class="cmt-two"><div class="cmt-box"><h4>Where to point</h4>'+
-          '<canvas class="cmt-finder"></canvas>'+
-          '<div class="cmt-modeswitch" style="margin-top:.7rem">'+
-            '<button type="button" class="cmt-fov" data-fov="30">Wide 30\u00B0</button>'+
-            '<button type="button" class="cmt-fov cmt-on" data-fov="6">Binocular 6\u00B0</button>'+
-            '<button type="button" class="cmt-fov" data-fov="1.5">Eyepiece 1.5\u00B0</button>'+
+              (m!=null?m.toFixed(1):'?')+' works out at roughly '+
+              (mm<25?'25mm':Math.round(mm/10)*10+'mm')+' of aperture. That follows '+
+              'from NASA\u2019s predicted brightness, which is a model fit and can be '+
+              'well out in either direction \u2014 and no model predicts an outburst. '+
+              'Treat it as a starting point, not a guarantee.':'')+
           '</div></div>'+
+        '<div class="cmt-two"><div class="cmt-box"><h4>Where to look</h4>'+
+          '<canvas class="cmt-chart"></canvas>'+
+          '<div class="cmt-modeswitch" style="margin-top:.7rem">'+
+            '<button type="button" class="cmt-fov" data-fov="25">Wide 25\u00B0</button>'+
+            '<button type="button" class="cmt-fov cmt-on" data-fov="10">Binocular 10\u00B0</button>'+
+            '<button type="button" class="cmt-fov" data-fov="5">Close 5\u00B0</button>'+
+          '</div>'+
+          '<p class="cmt-sec-note" style="margin:.7rem 0 0;font-size:.8rem">'+
+            'The crosshair is where the comet is, not a picture of it. The dashed '+
+            'line is its path with dated ticks. The arrow shows which way the tail '+
+            'is pushed \u2014 always directly away from the Sun'+
+            (tailPA(c)!=null?', so toward the '+paWord(tailPA(c))+' tonight':'')+
+            '. Stars are shown to magnitude 7.5; through glass you will see more.</p>'+
+          '</div>'+
           '<div><div class="cmt-box" style="margin-bottom:.8rem">'+
           '<h4>Brightness over the next two months</h4>'+
           '<canvas class="cmt-curve"></canvas></div>'+
@@ -583,8 +672,8 @@ function drawList(){
 
 function redraw(row){
   var c=get(row.dataset.id),fb=row.querySelector(".cmt-fov.cmt-on");
-  var f=row.querySelector("canvas.cmt-finder"),cu=row.querySelector("canvas.cmt-curve");
-  if(f)drawFinder(f,c,fb?parseFloat(fb.dataset.fov):6);
+  var ch=row.querySelector("canvas.cmt-chart"),cu=row.querySelector("canvas.cmt-curve");
+  if(ch)drawChart(ch,c,fb?parseFloat(fb.dataset.fov):10);
   if(cu)drawCurve(cu,c);}
 
 function render(){drawFlags();drawDome();drawList();}
