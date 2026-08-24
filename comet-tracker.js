@@ -325,10 +325,14 @@ function starLimit(mm,bortle){
 // see than a point of the same total magnitude. How much harder depends on
 // how condensed it is, which nobody publishes, so we carry a range rather
 // than pretend to a single figure.
-var COMET_PENALTY_TIGHT=0.5;   // condensed, nearly stellar
-var COMET_PENALTY_LOOSE=1.5;   // large and diffuse
-function cometLimit(mm,bortle,penalty){
-  return starLimit(mm,bortle)-(penalty==null?1.0:penalty);
+// A comet is an extended object, so it is harder to see than a star of the
+// same total magnitude. How much harder depends on how condensed the coma is,
+// which nobody publishes. 0.8 magnitudes suits a comet of ordinary
+// condensation and is what the recommendation is built on; the page says
+// plainly that a large diffuse one will be harder.
+var COMET_PENALTY=0.8;
+function cometLimit(mm,bortle){
+  return starLimit(mm,bortle)-COMET_PENALTY;
 }
 
 // Telescopes that actually exist. No 9-inch, no 22-inch.
@@ -341,30 +345,26 @@ var VISUAL_CEILING_MM=500;      // the largest telescope in that list
 var PRACTICAL_APERTURE_MM=300;  // a 12-inch: large, but people own them
 
 // Smallest real instrument that would show a comet of this magnitude.
-function scopeFor(mag,bortle,penalty){
+function scopeFor(mag,bortle){
   for(var i=0;i<REAL_SCOPES.length;i++){
-    if(cometLimit(REAL_SCOPES[i][0],bortle,penalty)>=mag)return REAL_SCOPES[i];
+    if(cometLimit(REAL_SCOPES[i][0],bortle)>=mag)return REAL_SCOPES[i];
   }
   return null;
 }
-// The honest recommendation: one that should show it if the coma is tight,
-// and one that will show it even if the coma is loose.
+// One recommendation, not a hedge.
 function scopeAdvice(mag,bortle){
-  var easy=scopeFor(mag,bortle,COMET_PENALTY_TIGHT);
-  var safe=scopeFor(mag,bortle,COMET_PENALTY_LOOSE);
-  if(!easy)return null;
-  if(!safe)return {one:easy[1],two:null};
-  return {one:easy[1],two:(safe[1]===easy[1]?null:safe[1])};
+  var s=scopeFor(mag,bortle);
+  return s?{one:s[1]}:null;
 }
 function cometAperture(mag,bortle){
-  var s=scopeFor(mag,bortle,1.0);
+  var s=scopeFor(mag,bortle);
   return s?s[0]:VISUAL_CEILING_MM+1;
 }
 
 function darkerSkyThatWorks(mag){
   var here=S.site.b||5, fallback=null;
   for(var bb=here-1; bb>=1; bb--){
-    var s=scopeFor(mag,bb,1.0);
+    var s=scopeFor(mag,bb);
     if(s&&fallback===null)fallback=bb;
     if(s&&s[0]<=PRACTICAL_APERTURE_MM)return bb;
   }
@@ -383,11 +383,6 @@ function bortleWords(b){
   if(b<=5)return "an outer-suburban sky";
   if(b<=6)return "a suburban sky";
   return "a somewhat darker sky";
-}
-function reachLine(){
-  return [[50,"50mm binoculars"],[100,"a 4-inch"],[150,"a 6-inch"],[200,"an 8-inch"],
-          [250,"a 10-inch"],[300,"a 12-inch"],[400,"a 16-inch"]]
-    .map(function(s){return s[1]+" about mag "+cometLimit(s[0]).toFixed(1);}).join(", ");
 }
 
 function magOf(c){
@@ -809,7 +804,11 @@ function drawList(){
             (m!=null?m.toFixed(1):"\u2014")+'</div><div class="cmt-d">magnitude \u2014 '+
             'lower is brighter</div></div>'+
           '<div class="cmt-kpi"><div class="cmt-l">You will likely need</div><div class="cmt-v cmt-sm">'+
-            (g?g.t:"\u2014")+'</div><div class="cmt-d">'+(g?g.s+(scopeAdvice(m)?' Estimated \u2014 see below.':''):"")+'</div></div>'+
+            (function(){var a=(m!=null)?scopeAdvice(m):null;return a?a.one:(g?g.t:"\u2014");})()+
+            '</div><div class="cmt-d">'+
+            (function(){var a=(m!=null)?scopeAdvice(m):null;
+              return a?(g?g.s:"")+' Estimated \u2014 see below.':(g?g.s:"");})()+
+            '</div></div>'+
           '<div class="cmt-kpi"><div class="cmt-l">Best time tonight</div><div class="cmt-v cmt-sm">'+
             (t&&pass?hm(t.jd):"not up")+'</div><div class="cmt-d">'+
             (t&&pass?'<b>'+t.alt.toFixed(0)+'\u00B0</b> above the '+compass(t.az)+' horizon':
@@ -825,26 +824,23 @@ function drawList(){
             var adv=(m!=null)?scopeAdvice(m):null;
             if(adv){
               return ' From a Bortle '+S.site.b+' sky like '+S.site.n+', magnitude '+
-                m.toFixed(1)+' calls for '+article(adv.one)+
-                (adv.two? ' \u2014 and '+article(adv.two)+
-                  ' if the coma turns out to be large and diffuse, which nobody publishes.' : '.')+
-                ' Limiting magnitudes follow the figures telescope makers publish on their '+
-                'own spec sheets, less the light-pollution allowance they give. For scale, '+
-                'from this sky tonight: '+reachLine()+'. The brightness itself is NASA\u2019s '+
-                'prediction, a model fit that can be out in either direction.';
+                m.toFixed(1)+' calls for '+article(adv.one)+'. That follows the limiting '+
+                'magnitudes telescope makers publish, less their light-pollution '+
+                'allowance. A large diffuse coma will be harder than this; the brightness '+
+                'itself is NASA\u2019s prediction and can be out in either direction.';
             }
             var better=darkerSkyThatWorks(m);
             if(better!=null){
               var s2=scopeAdvice(m,better);
               return ' From a Bortle '+S.site.b+' sky like '+S.site.n+', magnitude '+
-                m.toFixed(1)+' is out of reach \u2014 the light is lost in the skyglow before '+
-                'aperture becomes the limit. Not out of reach everywhere: from a Bortle '+
-                better+' sky, '+bortleWords(better)+', '+(s2?article(s2.one):'a large telescope')+
-                ' brings it back. For this one the drive matters more than the telescope.';
+                m.toFixed(1)+' is out of reach \u2014 the light is lost in the skyglow '+
+                'before aperture becomes the limit. From a Bortle '+better+' sky, '+
+                bortleWords(better)+', '+(s2?article(s2.one):'a large telescope')+
+                ' would show it. For this one the drive matters more than the telescope.';
             }
-            return ' At magnitude '+(m!=null?m.toFixed(1):'?')+' this is beyond visual reach '+
-              'from any sky, so we will not name a telescope. A camera will still record it: '+
-              'stacked exposures reach far fainter than the eye can.';
+            return ' At magnitude '+(m!=null?m.toFixed(1):'?')+' this is beyond visual '+
+              'reach from any sky. A camera will still record it: stacked exposures reach '+
+              'far fainter than the eye can.';
           })()+
           '</div></div>'+
         '<div class="cmt-two"><div class="cmt-box"><h4>Where to look</h4>'+
