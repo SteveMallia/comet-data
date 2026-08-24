@@ -370,6 +370,11 @@ function darkerSkyThatWorks(mag){
   }
   return fallback;
 }
+// "an 8-inch", "a 12-inch", "50mm binoculars" -- get the article right.
+function article(name){
+  if(/binocular/.test(name))return name;
+  return (/^(8|11|18|80)/.test(name)?"an ":"a ")+name;
+}
 function bortleWords(b){
   if(b<=1)return "a wilderness sky";
   if(b<=2)return "a genuinely dark site";
@@ -804,7 +809,7 @@ function drawList(){
             (m!=null?m.toFixed(1):"\u2014")+'</div><div class="cmt-d">magnitude \u2014 '+
             'lower is brighter</div></div>'+
           '<div class="cmt-kpi"><div class="cmt-l">You will likely need</div><div class="cmt-v cmt-sm">'+
-            (g?g.t:"\u2014")+'</div><div class="cmt-d">'+(g?g.s+(apertureWords(mm)?' Estimated \u2014 see below.':''):"")+'</div></div>'+
+            (g?g.t:"\u2014")+'</div><div class="cmt-d">'+(g?g.s+(scopeAdvice(m)?' Estimated \u2014 see below.':''):"")+'</div></div>'+
           '<div class="cmt-kpi"><div class="cmt-l">Best time tonight</div><div class="cmt-v cmt-sm">'+
             (t&&pass?hm(t.jd):"not up")+'</div><div class="cmt-d">'+
             (t&&pass?'<b>'+t.alt.toFixed(0)+'\u00B0</b> above the '+compass(t.az)+' horizon':
@@ -820,8 +825,8 @@ function drawList(){
             var adv=(m!=null)?scopeAdvice(m):null;
             if(adv){
               return ' From a Bortle '+S.site.b+' sky like '+S.site.n+', magnitude '+
-                m.toFixed(1)+' calls for '+(adv.one.indexOf("binocular")>=0?adv.one:'an '+adv.one).replace('an 4','a 4').replace('an 5','a 5').replace('an 6','a 6').replace('an 1','a 1').replace('an 20','a 20')+
-                (adv.two? ' \u2014 and '+(adv.two.indexOf("binocular")>=0?adv.two:'a '+adv.two).replace('a 8-inch','an 8-inch')+
+                m.toFixed(1)+' calls for '+article(adv.one)+
+                (adv.two? ' \u2014 and '+article(adv.two)+
                   ' if the coma turns out to be large and diffuse, which nobody publishes.' : '.')+
                 ' Limiting magnitudes follow the figures telescope makers publish on their '+
                 'own spec sheets, less the light-pollution allowance they give. For scale, '+
@@ -834,7 +839,7 @@ function drawList(){
               return ' From a Bortle '+S.site.b+' sky like '+S.site.n+', magnitude '+
                 m.toFixed(1)+' is out of reach \u2014 the light is lost in the skyglow before '+
                 'aperture becomes the limit. Not out of reach everywhere: from a Bortle '+
-                better+' sky, '+bortleWords(better)+', '+(s2?'a '+s2.one:'a large telescope')+
+                better+' sky, '+bortleWords(better)+', '+(s2?article(s2.one):'a large telescope')+
                 ' brings it back. For this one the drive matters more than the telescope.';
             }
             return ' At magnitude '+(m!=null?m.toFixed(1):'?')+' this is beyond visual reach '+
