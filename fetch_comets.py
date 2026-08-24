@@ -43,6 +43,56 @@ MAG_LIMIT = 17.0        # faintest total magnitude worth listing
 MAX_COMETS = 16         # keep the nightly job and the page a sane size
 
 
+GAUSS_K = 0.01720209895      # Gaussian gravitational constant, rad/day
+
+
+def helio_distance(q, e, tp, jd):
+    """Heliocentric distance now, from perihelion distance, eccentricity and
+    time of perihelion. Solves Kepler's equation in whichever regime applies.
+
+    This is the difference between 'how bright does this comet get' and
+    'how bright is it tonight'. Ranking on q alone answers the first
+    question, which is why an earlier version of this shortlist returned
+    Halley, Hale-Bopp and Hyakutake.
+    """
+    dt = jd - tp
+    try:
+        if e < 0.98:                                   # elliptical
+            a = q / (1.0 - e)
+            n = GAUSS_K / (a ** 1.5)
+            M = n * dt
+            M = math.fmod(M, 2 * math.pi)
+            E = M if e < 0.8 else math.pi
+            for _ in range(80):
+                dE = (E - e * math.sin(E) - M) / (1 - e * math.cos(E))
+                E -= dE
+                if abs(dE) < 1e-12:
+                    break
+            return a * (1 - e * math.cos(E))
+
+        if e > 1.02:                                   # hyperbolic
+            a = q / (e - 1.0)
+            n = GAUSS_K / (a ** 1.5)
+            M = n * dt
+            H = math.asinh(M / e) if M != 0 else 0.0
+            for _ in range(120):
+                f = e * math.sinh(H) - H - M
+                fp = e * math.cosh(H) - 1
+                dH = f / fp
+                H -= dH
+                if abs(dH) < 1e-12:
+                    break
+            return a * (e * math.cosh(H) - 1)
+
+        # near-parabolic: Barker's equation
+        W = 3 * GAUSS_K * dt / (math.sqrt(2) * 2 * (q ** 1.5))
+        y = (W + math.sqrt(W * W + 1)) ** (1.0 / 3.0)
+        tan_half_nu = y - 1.0 / y
+        return q * (1 + tan_half_nu * tan_half_nu)
+    except (ValueError, ZeroDivisionError, OverflowError):
+        return None
+
+
 def select_comets():
     """Ask JPL which comets are currently worth listing.
 
@@ -87,15 +137,22 @@ def select_comets():
             except (TypeError, ValueError):
                 return row[i]
         q, m1, k1, tp = val("q"), val("M1"), val("K1"), val("tp")
-        if q is None or m1 is None:
+        if q is None or m1 is None or not isinstance(tp, float):
+            continue
+        e_ = val("e")
+        if e_ is None:
             continue
         if k1 is None:
             k1 = 10.0
-        # Rough best-case brightness: at perihelion, with Earth no closer
-        # than |q-1| AU. Deliberately generous -- the ephemeris pass filters
-        # properly. This only needs to avoid missing anything.
-        delta = max(0.25, abs(q - 1.0))
-        est = m1 + 5 * math.log10(delta) + k1 * math.log10(max(0.05, q))
+
+        # Where is it NOW, not at its best.
+        r = helio_distance(q, e_, tp, now_jd)
+        if r is None or r <= 0 or r > 30:
+            continue
+        # Earth is 1 AU out, so the closest it could be is |r-1|. Generous
+        # on purpose: the ephemeris pass does the real filtering.
+        delta = max(0.20, abs(r - 1.0))
+        est = m1 + 5 * math.log10(delta) + k1 * math.log10(max(0.05, r))
         if est > MAG_LIMIT + 3:
             continue
         # prefer comets near perihelion now
@@ -484,9 +541,12 @@ def main():
 
     if not ok:
         print("\nNothing fetched — leaving the existing file untouched.", file=sys.stderr)
-        print("All requests failed. If the errors above are HTTP 429/503, JPL is "
-              "throttling; wait an hour and retry rather than re-running immediately.",
-              file=sys.stderr)
+        if failed:
+            print("All requests failed. If the errors above are HTTP 429/503, JPL is "
+                  "throttling; wait an hour before retrying.", file=sys.stderr)
+        else:
+            print("Every candidate was dropped as too faint. The shortlist is picking "
+                  "the wrong comets, not the fetch failing.", file=sys.stderr)
         return 2
 
     payload = {
