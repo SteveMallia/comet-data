@@ -43,6 +43,27 @@ MAG_LIMIT = 17.0        # faintest total magnitude worth listing
 MAX_COMETS = 16         # keep the nightly job and the page a sane size
 
 
+# JPL's SSD API Fair Use Policy asks that callers check the `version` field in
+# API output and return to their documentation if it changes, because formats
+# can change without notice. We record it and warn on any change.
+API_VERSIONS_SEEN = {}
+
+
+def note_api_version(service, text):
+    """Extract and track the API version JPL reports."""
+    m = re.search(r"API VERSION:\s*([0-9][0-9.a-zA-Z]*)", text or "")
+    if not m:
+        return None
+    v = m.group(1)
+    prev = API_VERSIONS_SEEN.get(service)
+    if prev and prev != v:
+        print(f"  NOTE {service} API version changed {prev} -> {v}. "
+              "Re-check https://ssd-api.jpl.nasa.gov/doc/ for format changes.",
+              file=sys.stderr)
+    API_VERSIONS_SEEN[service] = v
+    return v
+
+
 GAUSS_K = 0.01720209895      # Gaussian gravitational constant, rad/day
 
 
@@ -117,7 +138,15 @@ def select_comets():
         req = urllib.request.Request(
             url, headers={"User-Agent": "OntarioTelescope-CometTracker/1.0"})
         with urllib.request.urlopen(req, timeout=90) as r:
-            data = json.loads(r.read().decode("utf-8", "replace"))
+            raw = r.read().decode("utf-8", "replace")
+        data = json.loads(raw)
+        sig = (data.get("signature") or {})
+        if sig.get("version"):
+            prev = API_VERSIONS_SEEN.get("sbdb_query")
+            if prev and prev != sig["version"]:
+                print(f"  NOTE sbdb_query API version changed {prev} -> {sig['version']}",
+                      file=sys.stderr)
+            API_VERSIONS_SEEN["sbdb_query"] = sig["version"]
     except Exception as exc:                              # noqa: BLE001
         return None, f"{type(exc).__name__}: {exc}"
 
@@ -302,6 +331,7 @@ def parse(text):
     immediately beside `rdot`/`deldot`. Matching headers exactly rather than
     by position is what stops those being silently swapped.
     """
+    note_api_version("horizons", text)
     if "$$SOE" not in text or "$$EOE" not in text:
         return None, "no ephemeris block in response"
 
@@ -557,6 +587,9 @@ def main():
         "physical": phys,
         "records": records,
         "names": names,
+        "api_versions": API_VERSIONS_SEEN,
+        "fair_use": ("Fetched server-side, one request at a time, per the JPL SSD API "
+                     "Fair Use Policy. The APIs are not embedded in the website."),
         "selection": {
             "source": "JPL Small-Body Database",
             "criteria": f"comets with published M1, q < 6.5 AU, computed T-mag <= {MAG_LIMIT}",
