@@ -287,6 +287,19 @@ function pointAperture(mag){return 7*Math.pow(10,(mag-nelm())/5);}
 // What a comet actually needs. 2 magnitudes of extended-object penalty
 // is 10^(2/5) in aperture; see the derivation above.
 var EXTENDED_PENALTY_MAG=2.0;
+// The largest telescope an amateur might realistically stand behind. Past this
+// the light-grasp relation is being extrapolated far outside the range where it
+// was ever checked, and quoting a figure like "6980mm" is false precision
+// rather than information. Above the ceiling we say so in words instead.
+var VISUAL_CEILING_MM=700;
+// Human-friendly aperture: millimetres for small instruments, inches too once
+// they are the sort of thing people describe in inches.
+function apertureWords(mm){
+  if(mm>VISUAL_CEILING_MM)return null;
+  if(mm<25)return "25mm";
+  if(mm<100)return Math.round(mm/5)*5+"mm";
+  return Math.round(mm/10)*10+"mm (about "+(mm/25.4).toFixed(0)+" inches)";
+}
 function cometAperture(mag){
   return pointAperture(mag)*Math.pow(10,EXTENDED_PENALTY_MAG/5);
 }
@@ -702,7 +715,7 @@ function drawList(){
             (m!=null?m.toFixed(1):"\u2014")+'</div><div class="cmt-d">magnitude \u2014 '+
             'lower is brighter</div></div>'+
           '<div class="cmt-kpi"><div class="cmt-l">You will likely need</div><div class="cmt-v cmt-sm">'+
-            (g?g.t:"\u2014")+'</div><div class="cmt-d">'+(g?g.s+' Estimated \u2014 see below.':"")+'</div></div>'+
+            (g?g.t:"\u2014")+'</div><div class="cmt-d">'+(g?g.s+(apertureWords(mm)?' Estimated \u2014 see below.':''):"")+'</div></div>'+
           '<div class="cmt-kpi"><div class="cmt-l">Best time tonight</div><div class="cmt-v cmt-sm">'+
             (t&&pass?hm(t.jd):"not up")+'</div><div class="cmt-d">'+
             (t&&pass?'<b>'+t.alt.toFixed(0)+'\u00B0</b> above the '+compass(t.az)+' horizon':
@@ -714,12 +727,19 @@ function drawList(){
         '</div>'+
         '<div class="cmt-alert cmt-info"><span class="cmt-ic">i</span><div><b>'+
           verdictFor(m)+'</b>'+
-          (mm?' From a Bortle '+S.site.b+' sky like '+S.site.n+', magnitude '+
-              (m!=null?m.toFixed(1):'?')+' works out at roughly '+
-              (mm<25?'25mm':Math.round(mm/10)*10+'mm')+' of aperture. That follows '+
-              'from NASA\u2019s predicted brightness, which is a model fit and can be '+
-              'well out in either direction \u2014 and no model predicts an outburst. '+
-              'Treat it as a starting point, not a guarantee.':'')+
+          (mm&&apertureWords(mm)
+            ? ' From a Bortle '+S.site.b+' sky like '+S.site.n+', magnitude '+
+              (m!=null?m.toFixed(1):'?')+' works out at roughly '+apertureWords(mm)+
+              ' of aperture. That follows from NASA\u2019s predicted brightness, which is '+
+              'a model fit and can be well out in either direction \u2014 and no model '+
+              'predicts an outburst. Treat it as a starting point, not a guarantee.'+
+              (S.site.b>=7 ? ' From a sky this bright the figure is on the pessimistic '+
+                'side, because turning up the magnification darkens the background and '+
+                'helps more than this simple relation allows for.' : '')
+            : ' At magnitude '+(m!=null?m.toFixed(1):'?')+' this is beyond any visual '+
+              'telescope, so we are not going to quote an aperture \u2014 the arithmetic '+
+              'would run past every instrument on Earth. A camera will still record it: '+
+              'stacked exposures reach far fainter than the eye ever can.')+
           '</div></div>'+
         '<div class="cmt-two"><div class="cmt-box"><h4>Where to look</h4>'+
           '<canvas class="cmt-chart"></canvas>'+
