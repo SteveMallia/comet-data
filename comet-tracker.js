@@ -270,155 +270,35 @@ function ephAt(id,jd){var r=S.eph[id];
       r:L(A.r,B.r),delta:L(A.delta,B.delta),elong:L(A.elong,B.elong)};}
   return null;}
 
-/* ---- brightness and optics -------------------------------------------
-   Brightness: JPL Horizons T-mag, the total visual magnitude of the whole
-   coma, from the IAU model T = M1 + 5log(delta) + K1*log(r) with M1/K1
-   fitted by JPL to observations reported to the Minor Planet Centre.
-
-   Aperture: an earlier version of this used
-       limiting magnitude = naked-eye limit + 5*log10(D / 7mm)
-   which is wrong, and wrong in an expensive direction. That relation
-   assumes a 7mm exit pupil — the lowest useful power — where the sky
-   through the telescope is exactly as bright as it is to the naked eye.
-   Nobody hunts faint objects that way. At a 2mm exit pupil the sky
-   background is 2.7 magnitudes per square arcsecond darker while the
-   object's flux is unchanged, so magnification largely defeats light
-   pollution. Ignoring that under-read an 8-inch by over a magnitude in
-   a bright sky, and inverted to an aperture it demanded a 22-inch for a
-   comet a 10-inch will show.
-
-   What is used instead:
-       point-source limit = 3.1 + 5*log10(D_mm) - skyPenalty(bortle)
-   calibrated so a 203mm telescope reaches magnitude 14.6 under a
-   wilderness sky falling to 12.5 in an inner city, which is what such a
-   telescope is documented to do. Checked from 60mm to 406mm it stays
-   within about 0.4 magnitudes of the commonly quoted figures.
-
-   A comet is not a point, so subtract an extended-object penalty. Faint
-   comets have compact comas of a few arcminutes, for which 1.2 magnitudes
-   fits; a large diffuse coma is harder, and the page says so.
-   ---------------------------------------------------------------------- */
-// --- limiting magnitude, from the manufacturers' own numbers ---------------
-// Celestron publish a limiting stellar magnitude on every telescope and
-// binocular they sell. Fitting their table gives
-//       limiting magnitude = 2.5 + 5*log10(aperture in mm)
-// which reproduces their catalogue specs to a tenth: 14.0 for an 8-inch,
-// 14.4 for a 9.25, 14.7 for an 11, 15.3 for a 14. They also publish a light
-// pollution chart: subtract 1.0 magnitude for a moderately light-polluted
-// sky and 2.0 for a heavily light-polluted one, with the unaided eye going
-// 6.5 / 5.5 / 4.5 across the same three tiers.
-//
-// Earlier versions of this page used a constant of 3.1 and a slope taken
-// from light grasp alone. Both were wrong, and wrong in the expensive
-// direction: they asked for a 22-inch where a 10-inch would do.
-var LM_CONSTANT=2.5;
-// Celestron's three tiers spread across the nine Bortle classes.
-function skyPenalty(bortle){
-  var bb=(bortle==null)?(S.site.b||5):bortle;
-  return Math.max(0,Math.min(2,(bb-1)*0.25));
-}
-function starLimit(mm,bortle){
-  return LM_CONSTANT+5*Math.log10(Math.max(7,mm))-skyPenalty(bortle);
-}
-
-// A comet is not a star. Its light is spread over a coma, so it is harder to
-// see than a point of the same total magnitude. How much harder depends on
-// how condensed it is, which nobody publishes, so we carry a range rather
-// than pretend to a single figure.
-// A comet is an extended object, so it is harder to see than a star of the
-// same total magnitude. How much harder depends on how condensed the coma is,
-// which nobody publishes. 0.8 magnitudes suits a comet of ordinary
-// condensation and is what the recommendation is built on; the page says
-// plainly that a large diffuse one will be harder.
-var COMET_PENALTY=0.8;
-function cometLimit(mm,bortle){
-  return starLimit(mm,bortle)-COMET_PENALTY;
-}
-
-// Telescopes that actually exist. No 9-inch, no 22-inch.
-var REAL_SCOPES=[
-  [50,"50mm binoculars"],[70,"70mm binoculars"],[80,"80mm refractor"],
-  [100,"4-inch"],[130,"5-inch"],[150,"6-inch"],[200,"8-inch"],[250,"10-inch"],
-  [300,"12-inch"],[350,"14-inch"],[400,"16-inch"],[450,"18-inch"],[500,"20-inch"]
-];
-var VISUAL_CEILING_MM=500;      // the largest telescope in that list
-var PRACTICAL_APERTURE_MM=300;  // a 12-inch: large, but people own them
-
-// Smallest real instrument that would show a comet of this magnitude.
-function scopeFor(mag,bortle){
-  for(var i=0;i<REAL_SCOPES.length;i++){
-    if(cometLimit(REAL_SCOPES[i][0],bortle)>=mag)return REAL_SCOPES[i];
-  }
-  return null;
-}
-// One recommendation, not a hedge.
-function scopeAdvice(mag,bortle){
-  var s=scopeFor(mag,bortle);
-  return s?{one:s[1]}:null;
-}
-function cometAperture(mag,bortle){
-  var s=scopeFor(mag,bortle);
-  return s?s[0]:VISUAL_CEILING_MM+1;
-}
-
-function darkerSkyThatWorks(mag){
-  var here=S.site.b||5, fallback=null;
-  for(var bb=here-1; bb>=1; bb--){
-    var s=scopeFor(mag,bb);
-    if(s&&fallback===null)fallback=bb;
-    if(s&&s[0]<=PRACTICAL_APERTURE_MM)return bb;
-  }
-  return fallback;
-}
-// "an 8-inch", "a 12-inch", "50mm binoculars" -- get the article right.
-function article(name){
-  if(/binocular/.test(name))return name;
-  return (/^(8|11|18|80)/.test(name)?"an ":"a ")+name;
-}
-function bortleWords(b){
-  if(b<=1)return "a wilderness sky";
-  if(b<=2)return "a genuinely dark site";
-  if(b<=3)return "a rural sky";
-  if(b<=4)return "a rural-suburban sky";
-  if(b<=5)return "an outer-suburban sky";
-  if(b<=6)return "a suburban sky";
-  return "a somewhat darker sky";
-}
+// The sky-darkness setting drives how many stars the all-sky chart draws, so
+// the view resembles what is actually over your head. It no longer feeds any
+// equipment advice: see the note in the comet panels for why.
+var NELM={1:7.8,2:7.3,3:6.8,4:6.3,5:5.8,6:5.3,7:4.8,8:4.3,9:4.0};
+function nelm(){return NELM[S.site.b]||5.8;}
 
 function magOf(c){
   var e=ephAt(c.id,toJD(S.now));
   return (e&&e.mag!=null)?e.mag:null;
 }
 
-function gearFor(mm){
-  if(mm<=7)   return {t:"Your eyes", s:"No equipment needed.", u:null};
-  if(mm<=70)  return {t:"Binoculars", s:"An 8x42 or 10x50 is plenty.", u:"/collections/astronomy-binoculars"};
-  if(mm<=100) return {t:"Large binoculars", s:"15x70 or 20x80 on a tripod.", u:"/collections/giant-astronomy-binoculars"};
-  if(mm<=150) return {t:"Small telescope", s:"An 80 to 150mm.", u:"/collections/refractors"};
-  if(mm<=250) return {t:"8 to 10 inch", s:"A fast Dobsonian is ideal.", u:"/collections/dobsonian"};
-  if(mm<=350) return {t:"12 to 14 inch", s:"And a genuinely dark sky.", u:"/collections/dobsonian"};
-  if(mm<=500) return {t:"16 to 20 inch", s:"A serious hunt.", u:"/collections/dobsonian"};
-  return {t:"Camera only", s:"Out of visual reach. Stacked exposures will still catch it.",
-          u:"/collections/smart-telescopes"};
-}
 
 // NASA predicts brightness from a magnitude law fitted to past observations
 // of each comet. That fit can be well off in either direction, and it cannot
 // anticipate an outburst at all. So the aperture below is an estimate from
 // the predicted magnitude, not a measurement, and the page says so.
+// What the predicted magnitude means, in plain terms. No equipment advice:
+// the prediction is a model fit that cannot see an outburst, and turning a
+// number that can be eight magnitudes wrong into a telescope recommendation
+// gives it an authority it has not earned.
 function verdictFor(mag){
   if(mag==null)return "Brightness unavailable.";
-  var adv=scopeAdvice(mag);
-  if(!adv){
-    return darkerSkyThatWorks(mag)!=null
-      ? "Out of reach from this sky, but not from a darker one."
-      : "Beyond visual reach from anywhere. A camera will still record it.";
-  }
-  if(adv.one.indexOf("binocular")>=0)return "A binocular target on the predicted brightness.";
-  if(adv.one==="80mm refractor"||adv.one==="4-inch")return "Within reach of a small telescope.";
-  if(adv.one==="5-inch"||adv.one==="6-inch")return "A modest telescope should do it.";
-  if(adv.one==="8-inch"||adv.one==="10-inch")return "Wants a decent telescope and a dark sky.";
-  return "Difficult: large telescope, dark sky, patient observer.";
+  if(mag<=4)  return "Predicted bright enough to see without any equipment.";
+  if(mag<=6)  return "Predicted an easy binocular object.";
+  if(mag<=8)  return "Predicted within binocular range from a dark sky.";
+  if(mag<=10) return "Predicted faint \u2014 a small telescope job.";
+  if(mag<=13) return "Predicted faint. A real hunt from anywhere but a dark sky.";
+  if(mag<=16) return "Predicted very faint. Realistically a photographic target.";
+  return "Predicted far too faint to see. Long exposures would still record it.";
 }
 
 function trendOf(c){
@@ -784,7 +664,7 @@ function drawList(){
     if(t){ if(t.alt<S.minAlt){pass=false;why="only gets "+t.alt.toFixed(0)+"\u00B0 above the horizon";}
       else if(t.e.elong!=null&&t.e.elong<S.minEl){pass=false;why="too close to the Sun";}}
     if(pass&&m!=null)vis++;
-    var mm=(m!=null)?cometAperture(m):null, g=mm?gearFor(mm):null, tr=trendOf(c);
+    var tr=trendOf(c);
     var e=ephAt(c.id,jd);
 
     h+='<div class="cmt-row'+(pass?"":" cmt-off")+'" data-id="'+c.id+'" data-open="'+
@@ -796,18 +676,16 @@ function drawList(){
       (t&&pass?'<span>highest '+hm(t.jd)+', '+t.alt.toFixed(0)+'\u00B0 up in the '+compass(t.az)+'</span>':'')+
       (!pass&&why?'<span>'+why+'</span>':'')+'</span></span>'+
       '<span class="cmt-rmag"><b>'+(m!=null?m.toFixed(1):"\u2014")+'</b>'+
-      '<span class="cmt-pill '+(g&&mm<=35?"cmt-bb":"cmt-nb")+'">'+
-      (g?g.t:"no data")+'</span></span></button>'+
+      '<span class="cmt-pill cmt-nb">predicted</span></span></button>'+
       '<div class="cmt-detail">'+
         '<div class="cmt-kpis">'+
           '<div class="cmt-kpi"><div class="cmt-l">Brightness</div><div class="cmt-v">'+
             (m!=null?m.toFixed(1):"\u2014")+'</div><div class="cmt-d">magnitude \u2014 '+
             'lower is brighter</div></div>'+
-          '<div class="cmt-kpi"><div class="cmt-l">You will likely need</div><div class="cmt-v cmt-sm">'+
-            (function(){var a=(m!=null)?scopeAdvice(m):null;return a?a.one:(g?g.t:"\u2014");})()+
-            '</div><div class="cmt-d">'+
-            (function(){var a=(m!=null)?scopeAdvice(m):null;
-              return a?(g?g.s:"")+' Estimated \u2014 see below.':(g?g.s:"");})()+
+          '<div class="cmt-kpi"><div class="cmt-l">Angle from the Sun</div><div class="cmt-v">'+
+            (e&&e.elong!=null?e.elong.toFixed(0)+'\u00B0':"\u2014")+'</div><div class="cmt-d">'+
+            (e&&e.elong!=null?(e.elong<30?'lost in twilight':
+              e.elong<60?'low, and fighting dawn or dusk':'well clear of the Sun'):'')+
             '</div></div>'+
           '<div class="cmt-kpi"><div class="cmt-l">Best time tonight</div><div class="cmt-v cmt-sm">'+
             (t&&pass?hm(t.jd):"not up")+'</div><div class="cmt-d">'+
@@ -818,31 +696,19 @@ function drawList(){
             '<div class="cmt-d">'+(e&&e.delta!=null?
               Math.round(e.delta*149.6)+' million km':'')+'</div></div>'+
         '</div>'+
-        '<div class="cmt-alert cmt-info"><span class="cmt-ic">i</span><div><b>'+
-          verdictFor(m)+'</b>'+
-          (function(){
-            var adv=(m!=null)?scopeAdvice(m):null;
-            if(adv){
-              return ' From a Bortle '+S.site.b+' sky like '+S.site.n+', magnitude '+
-                m.toFixed(1)+' calls for '+article(adv.one)+'. That follows the limiting '+
-                'magnitudes telescope makers publish, less their light-pollution '+
-                'allowance. A large diffuse coma will be harder than this; the brightness '+
-                'itself is NASA\u2019s prediction and can be out in either direction.';
-            }
-            var better=darkerSkyThatWorks(m);
-            if(better!=null){
-              var s2=scopeAdvice(m,better);
-              return ' From a Bortle '+S.site.b+' sky like '+S.site.n+', magnitude '+
-                m.toFixed(1)+' is out of reach \u2014 the light is lost in the skyglow '+
-                'before aperture becomes the limit. From a Bortle '+better+' sky, '+
-                bortleWords(better)+', '+(s2?article(s2.one):'a large telescope')+
-                ' would show it. For this one the drive matters more than the telescope.';
-            }
-            return ' At magnitude '+(m!=null?m.toFixed(1):'?')+' this is beyond visual '+
-              'reach from any sky. A camera will still record it: stacked exposures reach '+
-              'far fainter than the eye can.';
-          })()+
-          '</div></div>'+
+        '<div class="cmt-alert '+((m!=null&&m<=10)?'cmt-info':'cmt-warn')+'">'+
+          '<span class="cmt-ic">'+((m!=null&&m<=10)?'i':'!')+'</span><div><b>'+
+          verdictFor(m)+'</b> That figure is NASA\u2019s prediction from the comet\u2019s '+
+          'orbit and its behaviour on past visits. It is a model, not a measurement, '+
+          'and it cannot see an outburst coming \u2014 comets erupt without warning and '+
+          'have brightened a hundredfold in a day. When that happens the prediction can '+
+          'be wrong by many magnitudes, always in the direction of the comet being '+
+          'brighter than we say. Before driving anywhere, check a current observing '+
+          'report: <a href="https://alpo-astronomy.org/Comets" rel="noopener" '+
+          'target="_blank">ALPO Comet News</a> or '+
+          '<a href="https://cobs.si/recent/" rel="noopener" target="_blank">recent COBS '+
+          'observations</a>. If observers say it is brighter than this page does, '+
+          'they are right.</div></div>'+
         '<div class="cmt-two"><div class="cmt-box"><h4>Where to look</h4>'+
           '<canvas class="cmt-chart"></canvas>'+
           '<div class="cmt-modeswitch" style="margin-top:.7rem">'+
