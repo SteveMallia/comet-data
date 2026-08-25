@@ -190,6 +190,17 @@ def select_comets():
         pdes = str(row[idx["pdes"]]).strip() if "pdes" in idx else ""
         if not pdes:
             continue
+
+        # Skip comets that no longer exist. A "D" designation means defunct:
+        # 3D/Biela broke up in 1852, 34D/Gale has not been seen since 1938.
+        # JPL still computes ephemerides for them from the historical orbit,
+        # so they sail through a brightness filter and then show up on the
+        # page as objects nobody can observe at any aperture.
+        if re.match(r"^\d+D\b", pdes) or pdes.upper().startswith("D/"):
+            continue
+        # Skip fragments: they duplicate the parent and are always fainter.
+        if re.search(r"-[A-Z]$", pdes):
+            continue
         cands.append((est, near, pdes, name))
 
     if not cands:

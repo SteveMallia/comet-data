@@ -847,7 +847,7 @@ function drawList(){
           '<canvas class="cmt-chart"></canvas>'+
           '<div class="cmt-modeswitch" style="margin-top:.7rem">'+
             '<button type="button" class="cmt-fov" data-fov="25">Wide 25\u00B0</button>'+
-            '<button type="button" class="cmt-fov cmt-on" data-fov="10">Binocular 10\u00B0</button>'+
+            '<button type="button" class="cmt-fov cmt-on" data-fov="10">Medium 10\u00B0</button>'+
             '<button type="button" class="cmt-fov" data-fov="5">Close 5\u00B0</button>'+
           '</div>'+
           '<p class="cmt-sec-note" style="margin:.7rem 0 0;font-size:.8rem">'+
@@ -866,9 +866,17 @@ function drawList(){
       '</div></div>';});
 
   list.innerHTML=h;
-  el("cmt-count").textContent = vis===0
+  var best=null;
+  COMETS.forEach(function(c){var m=magOf(c);if(m!=null&&(best==null||m<best))best=m;});
+  var lead = vis===0
     ? "Nothing on this list clears your filters tonight. Try lowering the minimum altitude."
     : vis+" of "+COMETS.length+" are up and clear of the Sun tonight.";
+  if(best!=null&&best>11){
+    lead += " This is a lean spell: the brightest comet anywhere in the sky is only "+
+      "magnitude "+best.toFixed(1)+", so everything here wants a telescope rather than "+
+      "binoculars. Bright comets are occasional \u2014 worth checking back.";
+  }
+  el("cmt-count").textContent = lead;
 
   Array.prototype.forEach.call(list.querySelectorAll(".cmt-row"),function(row){
     var c=get(row.dataset.id),e=ephAt(c.id,jd),t=tonight(c),rows=[];
